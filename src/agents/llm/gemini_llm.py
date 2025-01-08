@@ -3,7 +3,7 @@ from typing import AsyncGenerator, Generator, List, Optional
 from llama_index.llms.gemini import Gemini
 from llama_index.core.llms import ChatMessage
 from .base import BaseLLM
-from src.config import Config
+from src.config import Settings
 import logging
 import asyncio
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class GeminiLLM(BaseLLM):
     def __init__(self):
-        config = Config.GEMINI_CONFIG
+        config = Settings.GEMINI_CONFIG
         super().__init__(
             api_key=config.api_key,
             model_name=config.model_name,
