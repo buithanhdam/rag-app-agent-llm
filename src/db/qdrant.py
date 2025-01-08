@@ -18,7 +18,7 @@ from tenacity import (
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from qdrant_client.models import ScoredPoint
-from src.constants import QdrantPayload
+from config import QdrantPayload
 from src.logger import get_formatted_logger
 logger = get_formatted_logger(__file__)
 

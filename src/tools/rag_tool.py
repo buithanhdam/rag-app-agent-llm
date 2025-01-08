@@ -11,7 +11,7 @@ from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI
 from llama_index.graph_stores.kuzu import KuzuPropertyGraphStore
 import kuzu
-from src.constants import DOCUMENT_EMBEDDING_MODEL_NAME, DOCUMENT_EMBEDDING_SERVICE
+from config import DOCUMENT_EMBEDDING_MODEL_NAME, DOCUMENT_EMBEDDING_SERVICE
 # import re
 import nest_asyncio 
 nest_asyncio.apply()
