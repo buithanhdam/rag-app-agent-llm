@@ -1,7 +1,11 @@
 # src/services/kb.py
+import os
 from pathlib import Path
+import tempfile
 from typing import Optional, Dict, Any
-from src.readers.docling import DoclingReader
+
+from fastapi.responses import FileResponse
+from src.readers import parse_multiple_files, FileExtractor
 from src.db.rag_manager import RAGManager
 from config import Settings
 from src.logger import get_formatted_logger
@@ -21,13 +25,7 @@ class KnowledgeBaseService:
         self.settings = settings
         
         # Initialize DoclingReader
-        self.reader = DoclingReader(
-            num_threads=settings.READER_CONFIG.num_threads,
-            image_resolution_scale=settings.READER_CONFIG.image_resolution_scale,
-            enable_ocr=settings.READER_CONFIG.enable_ocr,
-            enable_tables=settings.READER_CONFIG.enable_tables
-        )
-        
+        self.file_extractor = FileExtractor()
         # Initialize RAG Manager
         self.rag_manager = RAGManager(
             qdrant_url=settings.QDRANT_URL,
@@ -58,38 +56,62 @@ class KnowledgeBaseService:
             Dict containing processing results
         """
         try:
-            # Process with DoclingReader
-            doc_result = self.reader.process_bytes(
-                file_bytes=file_content,
-                file_extension=Path(filename).suffix
+            temp_dir = Path(tempfile.gettempdir()) / "uploads"
+            temp_dir.mkdir(exist_ok=True)
+            original_filename = Path(filename)
+            extension = original_filename.suffix
+            
+            # Create a unique temporary file with original extension
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=extension,
+                dir=temp_dir
             )
             
-            # Merge provided metadata with file metadata
-            combined_metadata = {
-                "filename": filename,
-                "num_pages": doc_result["metadata"]["num_pages"]
-            }
-            if metadata:
-                combined_metadata.update(metadata)
+            # Write content to temporary file
+            with open(temp_file.name, 'wb') as f:
+                f.write(file_content)
             
+            file_info = FileResponse(
+                file_path=temp_file.name,
+                original_filename=original_filename.name,
+                extension=extension,
+                size=os.path.getsize(temp_file.name)
+            )
+            file_path = file_info["file_path"]
+            
+            documents = parse_multiple_files(
+                str(file_path),
+                extractor=self.file_extractor.get_extractor_for_file(file_path),
+            )
             # Process with RAG Manager
-            document_id = self.rag_manager.process_document(
-                document=doc_result["markdown_content"],
-                collection_name=collection_name,
-                metadata=combined_metadata,
-                show_progress=False  # Disable progress bars for API
-            )
-            
+            documents_id = []
+            for doc in documents:
+                documents_id.append(
+                    self.rag_manager.process_document(
+                        document=doc.text,
+                        collection_name=collection_name,
+                        metadata=doc.metadata
+                    )
+                )
+            try:
+                os.unlink(temp_file.name)
+            except Exception as e:
+                print(f"Error cleaning up temporary file: {e}")
             return {
                 "status": "success",
-                "document_id": document_id,
-                "pages": len(doc_result["pages"]),
-                "collection": collection_name,
-                "metadata": combined_metadata
+                "documents_id": documents_id,
+                "total": len(documents_id),
+                "collection": collection_name
             }
             
         except Exception as e:
             logger.error(f"Error processing document: {str(e)}")
+            if 'temp_file' in locals():
+                try:
+                    os.unlink(temp_file.name)
+                except:
+                    pass
             raise
     
     async def query_documents(
