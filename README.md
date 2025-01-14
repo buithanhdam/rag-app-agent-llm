@@ -1,5 +1,5 @@
 # agent-llm-rag-app
-
+This repository contains an implementation of agentic patterns such as **Planning (ReActAgent flow)** from [multi-agent](https://github.com/buithanhdam/multi-agent), [kotaemon](https://github.com/Cinnamon/kotaemon)
 ## Project Structure
 
 ```
@@ -89,17 +89,43 @@ QDRANT_URL=http://localhost:6333
      pip install -r requirements_streamlit.txt
      ```
 
-4. **Run FastAPI Backend**
-   ```bash
-   python app_fastapi.py
-   ```
-   FastAPI server will be available at: `http://localhost:8000`
+---
 
-5. **Run Streamlit Frontend**
-   ```bash
-   streamlit run app_streamlit.py
-   ```
-   Streamlit app will be available at: `http://localhost:8501`
+## Setup Environment Variables
+
+Copy the `.env.example` file to a new `.env` file and update the API keys:
+
+```bash
+cp .env.example .env
+```
+
+Add the following keys:
+
+```plaintext
+GOOGLE_API_KEY=your_google_api_key
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+```
+
+---
+
+## Running the Application
+
+### 1. Run FastAPI Backend
+
+```bash
+uvicorn app_fastapi:app --host 0.0.0.0 --port 8000 --reload
+```
+
+- Access the API at: `http://127.0.0.1:8000`
+
+### 2. Run Streamlit Frontend
+
+```bash
+streamlit run app_streamlit.py --server.port=8501 --server.address=0.0.0.0
+```
+
+- Access the frontend UI at: `http://localhost:8501`
 
 ---
 
@@ -110,7 +136,11 @@ QDRANT_URL=http://localhost:6333
 2. Use Docker Compose to build and start the containers.
 
    ```bash
-   docker-compose up --build
+   docker-compose build
+   ```
+
+   ```bash
+   docker-compose up
    ```
 
 ### Services Included
