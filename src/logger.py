@@ -164,7 +164,7 @@ class FileFormater(logging.Formatter):
 
 
 def get_formatted_logger(
-    name: str, file_path: str | None = None, global_file_log: bool = True
+    name: str, file_path: str | None = None
 ) -> logging.Logger:
     """
     Get a coloured logger.
@@ -190,34 +190,19 @@ def get_formatted_logger(
         )
         stream_handler.setFormatter(stream_formatter)
         logger.addHandler(stream_handler)
+        date_log_path = f"logs/{datetime.now().strftime('%Y-%m-%d')}"
 
-        if file_path:
-            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(date_log_path).mkdir(parents=True, exist_ok=True)
 
-            file_handler = TimedRotatingFileHandler(
-                file_path, when="midnight", interval=1, encoding='utf-8'
-            )
-            file_handler.suffix = "%Y-%m-%d"  # Suffix theo ngày
-            file_formatter = FileFormater(
-                "%(asctime)s | %(levelname)-8s - [%(relpathname)s %(funcName)s(%(lineno)d)] - %(message)s",
-                datefmt="%Y/%m/%d - %H:%M:%S",
-            )
-            file_handler.setFormatter(file_formatter)
-            logger.addHandler(file_handler)
-
-        if global_file_log:
-            date_log_path = f"logs/{datetime.now().strftime('%Y-%m-%d')}"
-            Path(date_log_path).mkdir(parents=True, exist_ok=True)
-
-            global_file_handler = TimedRotatingFileHandler(
-                f"{date_log_path}/global.log", when="midnight", interval=1, encoding='utf-8'
-            )
-            global_file_handler.suffix = "%Y-%m-%d"
-            global_file_formatter = FileFormater(
-                "%(asctime)s | %(levelname)-8s - [%(relpathname)s %(funcName)s(%(lineno)d)] - %(message)s",
-                datefmt="%Y/%m/%d - %H:%M:%S",
-            )
-            global_file_handler.setFormatter(global_file_formatter)
-            logger.addHandler(global_file_handler)
+        global_file_handler = TimedRotatingFileHandler(
+            f"{date_log_path}/global.log", when="midnight", interval=1, encoding="utf-8"
+        )
+        global_file_handler.suffix = "%Y-%m-%d"
+        global_file_formatter = FileFormater(
+            "%(asctime)s | %(levelname)-8s - [%(relpathname)s %(funcName)s(%(lineno)d)] - %(message)s",
+            datefmt="%Y/%m/%d - %H:%M:%S",
+        )
+        global_file_handler.setFormatter(global_file_formatter)
+        logger.addHandler(global_file_handler)
 
     return logger

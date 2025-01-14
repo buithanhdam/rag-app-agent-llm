@@ -43,7 +43,7 @@ def upload_document(file, collection_name: str) -> Optional[dict]:
     try:
         files = {"file": file}
         response = requests.post(
-            f"{API_URL}/upload",
+            f"{API_URL}/kb/upload",
             files=files,
             params={"collection_name": collection_name}
         )

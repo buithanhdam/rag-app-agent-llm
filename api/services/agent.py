@@ -8,6 +8,7 @@ from src.agents import (
 # from src.tools.tool_manager import weather_tool
 from src.agents.llm import GeminiLLM
 from llama_index.core.llms import ChatMessage
+from src.tools.tool_manager import tool_manager
 
 class AgentChat:
     def __init__(self):
@@ -26,7 +27,7 @@ class AgentChat:
                 name="Planning Assistant",
                 description="Assists with project planning, task breakdown, and using tool"
             ),
-            # tools=[weather_tool]
+            tools=tool_manager.get_all_tools()
         )
         
         # Chat history to provide context

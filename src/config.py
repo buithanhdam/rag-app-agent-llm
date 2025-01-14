@@ -44,7 +44,8 @@ class QdrantPayload(BaseModel):
 class Settings(BaseSettings):
     """Main application settings"""
     QDRANT_URL: str = os.getenv('QDRANT_URL', "http://qdrant:6333")
-    GEMINI_API_KEY: str = os.getenv('GOOGLE_API_KEY', '')
+    GOOGLE_API_KEY: str = os.getenv('GOOGLE_API_KEY', '')
+    BACKEND_API_URL: str = os.getenv('BACKEND_API_URL', 'http://localhost:8000')
     
     # Component configurations
     READER_CONFIG: ReaderConfig = ReaderConfig()

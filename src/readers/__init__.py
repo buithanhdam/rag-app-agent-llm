@@ -1,5 +1,5 @@
-from utils import parse_multiple_files
-from extractor import FileExtractor
+from .utils import parse_multiple_files
+from .extractor import FileExtractor
 # document = parse_multiple_files(
 #         str(file_path),
 #         extractor=file_extractor.get_extractor_for_file(file_path),

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from api.routers.agent import agent_router  # Import the router we just created
+from api.routers.kb import kb_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -21,7 +22,7 @@ app.add_middleware(
 
 # Include the agent router
 app.include_router(agent_router)
-
+app.include_router(kb_router)
 # Optional: Add a health check endpoint
 @app.get("/health")
 async def health_check():

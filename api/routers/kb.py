@@ -2,7 +2,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
-from config import Settings
+from src.config import Settings
 from api.services.kb import KnowledgeBaseService
 
 kb_router = APIRouter(prefix="/kb", tags=["kb"])

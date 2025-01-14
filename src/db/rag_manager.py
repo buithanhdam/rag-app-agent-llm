@@ -8,9 +8,9 @@ from llama_index.llms.gemini import Gemini
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index.core.node_parser import SimpleNodeParser
-
+from qdrant_client.http import models
 from src.db.qdrant import QdrantVectorDatabase
-from config import QdrantPayload
+from src.config import QdrantPayload
 from src.logger import get_formatted_logger
 
 logger = get_formatted_logger(__file__)
@@ -161,6 +161,9 @@ class RAGManager:
             document_id: Document ID
             show_progress: Whether to show progress bar
         """
+        if not self.qdrant_client.check_collection_exists(collection_name):
+            vector_size = len(self.embedding_model.get_text_embedding(chunks[0].text))
+            self.qdrant_client.create_collection(collection_name, vector_size)
         chunks_iter = tqdm(chunks, desc="Indexing chunks...") if show_progress else chunks
         
         for chunk in chunks_iter:
@@ -187,7 +190,7 @@ class RAGManager:
     def search(
         self,
         query: str,
-        collection_name: str,
+        collection_name: str = "documents",
         limit: int = 5
     ) -> str:
         """
@@ -210,7 +213,14 @@ class RAGManager:
             results = self.qdrant_client.search_vector(
                 collection_name=collection_name,
                 vector=query_embedding,
-                limit=limit
+                limit=limit,
+                search_params=models.SearchParams(
+                quantization=models.QuantizationSearchParams(
+                    ignore=False,
+                    rescore=True,
+                    oversampling=2.0,
+                )
+            ),
             )
             
             # Extract contexts

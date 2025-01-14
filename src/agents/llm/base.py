@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Generator, List, Optional
 from llama_index.core.llms import ChatMessage
 import logging
-
+from pydantic_settings import BaseSettings
 logger = logging.getLogger(__name__)
 
 class BaseLLM(ABC):
@@ -33,6 +33,7 @@ class BaseLLM(ABC):
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.system_prompt = system_prompt
+       
 
     @abstractmethod
     def _initialize_model(self) -> None:

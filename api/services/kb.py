@@ -7,7 +7,7 @@ from typing import Optional, Dict, Any
 from fastapi.responses import FileResponse
 from src.readers import parse_multiple_files, FileExtractor
 from src.db.rag_manager import RAGManager
-from config import Settings
+from src.config import Settings
 from src.logger import get_formatted_logger
 
 logger = get_formatted_logger(__file__)
@@ -71,14 +71,7 @@ class KnowledgeBaseService:
             # Write content to temporary file
             with open(temp_file.name, 'wb') as f:
                 f.write(file_content)
-            
-            file_info = FileResponse(
-                file_path=temp_file.name,
-                original_filename=original_filename.name,
-                extension=extension,
-                size=os.path.getsize(temp_file.name)
-            )
-            file_path = file_info["file_path"]
+            file_path = temp_file.name
             
             documents = parse_multiple_files(
                 str(file_path),

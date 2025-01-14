@@ -3,22 +3,21 @@ from typing import AsyncGenerator, Generator, List, Optional
 from llama_index.llms.gemini import Gemini
 from llama_index.core.llms import ChatMessage
 from .base import BaseLLM
-from src.config import Settings
 import logging
 import asyncio
-
+from src.config import Settings
 logger = logging.getLogger(__name__)
 
 class GeminiLLM(BaseLLM):
     def __init__(self):
-        config = Settings.GEMINI_CONFIG
+        global_settings = Settings()
         super().__init__(
-            api_key=config.api_key,
-            model_name=config.model_name,
-            model_id=config.model_id,
-            temperature=config.temperature,
-            max_tokens=config.max_tokens,
-            system_prompt=config.system_prompt
+            api_key=global_settings.GEMINI_CONFIG.api_key,
+            model_name=global_settings.GEMINI_CONFIG.model_name,
+            model_id=global_settings.GEMINI_CONFIG.model_id,
+            temperature=global_settings.GEMINI_CONFIG.temperature,
+            max_tokens=global_settings.GEMINI_CONFIG.max_tokens,
+            system_prompt=global_settings.GEMINI_CONFIG.system_prompt
         )
         self._initialize_model()
 

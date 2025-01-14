@@ -23,6 +23,9 @@ class ReActAgent(BaseAgent):
         
     def _format_tool_signatures(self) -> str:
         """Format all tool signatures into a string format LLM can understand"""
+        if not self.tools:
+            return "No tools are currently available. You must complete the task without using any external tools."
+            
         tool_descriptions = []
         for tool in self.tools:
             metadata = tool.metadata
@@ -39,12 +42,28 @@ class ReActAgent(BaseAgent):
         return "\n".join(tool_descriptions)
         
     async def _get_initial_plan(self, task: str) -> ExecutionPlan:
-        """Generate initial execution plan for the given task"""
+        """Generate initial execution plan for the given task with strict tool usage"""
+        available_tools = list(self.tools_dict.keys())
+        tool_list_str = ", ".join(available_tools) if available_tools else "No tools available"
+        
         prompt = f"""
+        You are a planning assistant that can only use specifically provided tools.
+        
+        Available tools (ONLY use these exact tools, DO NOT assume any other tools exist):
+        {tool_list_str}
+
         Create a step-by-step plan to accomplish this task: {task}
         
-        Available tools:
+        Tool specifications:
         {self._format_tool_signatures()}
+        
+        Important rules:
+        1. You can ONLY use the tools listed above
+        2. If no tools are available or the available tools cannot help with the task, 
+           create steps that don't require tools
+        3. DO NOT invent or assume the existence of any other tools
+        4. If you need a tool that's not listed, break down the task into steps that 
+           can be done with available tools or without tools
         
         Format your response as JSON:
         {{
@@ -52,7 +71,7 @@ class ReActAgent(BaseAgent):
                 {{
                     "description": "step description",
                     "requires_tool": true/false,
-                    "tool_name": "tool_name or null"  // Must match exactly with available tool names
+                    "tool_name": "tool_name or null"  // Must exactly match one of: {tool_list_str}
                 }},
                 ...
             ]
@@ -70,8 +89,11 @@ class ReActAgent(BaseAgent):
                 # Validate tool name if step requires tool
                 if step_data['requires_tool']:
                     tool_name = step_data.get('tool_name')
-                    if tool_name not in self.tools_dict:
-                        raise ValueError(f"Unknown tool: {tool_name}")
+                    if not tool_name or tool_name not in self.tools_dict:
+                        logger.warning(f"Invalid tool requested: {tool_name}. Converting to non-tool step.")
+                        # Convert to non-tool step instead of failing
+                        step_data['requires_tool'] = False
+                        step_data['tool_name'] = None
                 
                 plan.add_step(PlanStep(
                     description=step_data['description'],
