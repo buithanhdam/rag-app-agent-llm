@@ -40,17 +40,6 @@ This repository contains an implementation of agentic patterns such as **Plannin
 
 ---
 
-## .env Configuration
-Create a `.env` file in the root directory based on `.env.example`. Ensure to fill in the values for your environment.
-
-```
-GOOGLE_API_KEY=<your_google_api_key>
-OPENAI_API_KEY=<your_openai_api_key>
-ANTHROPIC_API_KEY=<your_anthropic_api_key>
-BACKEND_API_URL=http://localhost:8000
-QDRANT_URL=http://localhost:6333
-```
-
 ---
 
 ## Installation and Setup
@@ -102,9 +91,11 @@ cp .env.example .env
 Add the following keys:
 
 ```plaintext
-GOOGLE_API_KEY=your_google_api_key
-OPENAI_API_KEY=your_openai_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
+GOOGLE_API_KEY=<your_google_api_key>
+OPENAI_API_KEY=<your_openai_api_key>
+ANTHROPIC_API_KEY=<your_anthropic_api_key>
+BACKEND_API_URL=http://localhost:8000
+QDRANT_URL=http://localhost:6333
 ```
 
 ---
