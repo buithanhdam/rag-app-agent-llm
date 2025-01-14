@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List,Any
+from typing import List,Any, Optional
 from colorama import Fore
 from llama_index.core.tools import FunctionTool
 from llama_index.core.llms import ChatMessage
@@ -14,7 +14,7 @@ class ReActAgent(BaseAgent):
     """Agent that creates and executes plans using available tools"""
     
     def __init__(self, llm: BaseLLM, options: AgentOptions, tools: List[FunctionTool] = []):
-        super().__init__(llm,options)
+        super().__init__(llm, options)
         self.tools = tools
         self.tools_dict = {tool.metadata.name: tool for tool in tools}
         
@@ -24,7 +24,7 @@ class ReActAgent(BaseAgent):
     def _format_tool_signatures(self) -> str:
         """Format all tool signatures into a string format LLM can understand"""
         if not self.tools:
-            return "No tools are currently available. You must complete the task without using any external tools."
+            return "No tools are available. Respond based on your general knowledge only."
             
         tool_descriptions = []
         for tool in self.tools:
@@ -40,30 +40,23 @@ class ReActAgent(BaseAgent):
             )
         
         return "\n".join(tool_descriptions)
-        
-    async def _get_initial_plan(self, task: str) -> ExecutionPlan:
-        """Generate initial execution plan for the given task with strict tool usage"""
-        available_tools = list(self.tools_dict.keys())
-        tool_list_str = ", ".join(available_tools) if available_tools else "No tools available"
-        
-        prompt = f"""
-        You are a planning assistant that can only use specifically provided tools.
-        
-        Available tools (ONLY use these exact tools, DO NOT assume any other tools exist):
-        {tool_list_str}
 
-        Create a step-by-step plan to accomplish this task: {task}
+    async def _get_initial_plan(self, task: str) -> ExecutionPlan:
+        """Generate initial execution plan with focus on available tools"""
+        prompt = f"""
+        You are a planning assistant with access to specific tools. Create a focused plan using ONLY the tools listed below.
         
-        Tool specifications:
+        Task to accomplish: {task}
+        
+        Available tools and specifications:
         {self._format_tool_signatures()}
         
         Important rules:
-        1. You can ONLY use the tools listed above
-        2. If no tools are available or the available tools cannot help with the task, 
-           create steps that don't require tools
-        3. DO NOT invent or assume the existence of any other tools
-        4. If you need a tool that's not listed, break down the task into steps that 
-           can be done with available tools or without tools
+        1. ONLY use the tools listed above - do not assume any other tools exist
+        2. If a tool doesn't exist for a specific need, use your general knowledge to provide information
+        3. For information retrieval tasks, immediately use the RAG search tool if available
+        4. Keep the plan simple and focused - avoid unnecessary steps
+        5. Never include web searches or external tool usage in the plan
         
         Format your response as JSON:
         {{
@@ -71,12 +64,12 @@ class ReActAgent(BaseAgent):
                 {{
                     "description": "step description",
                     "requires_tool": true/false,
-                    "tool_name": "tool_name or null"  // Must exactly match one of: {tool_list_str}
+                    "tool_name": "tool_name or null",
+                    "is_required": true/false
                 }},
                 ...
             ]
         }}
-        Remove the ```json and ```
         """
         
         try:
@@ -89,16 +82,14 @@ class ReActAgent(BaseAgent):
                 # Validate tool name if step requires tool
                 if step_data['requires_tool']:
                     tool_name = step_data.get('tool_name')
-                    if not tool_name or tool_name not in self.tools_dict:
-                        logger.warning(f"Invalid tool requested: {tool_name}. Converting to non-tool step.")
-                        # Convert to non-tool step instead of failing
-                        step_data['requires_tool'] = False
-                        step_data['tool_name'] = None
+                    if tool_name not in self.tools_dict:
+                        # Skip invalid tool steps
+                        continue
                 
                 plan.add_step(PlanStep(
                     description=step_data['description'],
-                    requires_tool=step_data['requires_tool'],
-                    tool_name=step_data.get('tool_name')
+                    tool_name=step_data.get('tool_name'),
+                    requires_tool=step_data.get('is_required', True)
                 ))
             
             return plan
@@ -107,15 +98,22 @@ class ReActAgent(BaseAgent):
             logger.error(f"Error generating initial plan: {str(e)}")
             raise
 
-    async def _execute_tool(self, step: PlanStep) -> Any:
-        """Execute a FunctionTool based on the current step"""
+    async def _execute_tool(self, step: PlanStep) -> Optional[Any]:
+        """Execute a tool with better error handling"""
+        if not step.requires_tool or not step.tool_name:
+            return None
+            
+        tool = self.tools_dict.get(step.tool_name)
+        if not tool:
+            return None
+            
         prompt = f"""
         Generate parameters to call this tool:
         Step: {step.description}
         Tool: {step.tool_name}
         
         Tool specification:
-        {json.dumps(self.tools_dict[step.tool_name].metadata.get_parameters_dict(), indent=2)}
+        {json.dumps(tool.metadata.get_parameters_dict(), indent=2)}
         
         Response format:
         {{
@@ -123,24 +121,41 @@ class ReActAgent(BaseAgent):
                 // parameter names and values matching the specification exactly
             }}
         }}
-        Remove the ```json and ```
         """
         
         try:
-            # Get tool parameters from LLM
             response = await self.llm.achat(query=prompt)
             response = clean_json_response(response)
             params = json.loads(response)
             
-            # Get the tool and validate parameters
-            tool = self.tools_dict[step.tool_name]
-            
-            # Execute the tool
             result = await tool.acall(**params['arguments'])
             return result
             
         except Exception as e:
             logger.error(f"Error executing tool {step.tool_name}: {str(e)}")
+            if step.is_required:
+                raise
+            return None
+
+    async def _generate_summary(self, task: str, results: List[Any]) -> str:
+        """Generate a coherent summary of the results"""
+        prompt = f"""
+        Create a clear and concise summary based on the following:
+        
+        Original task: {task}
+        Results from execution: {results}
+        
+        Rules:
+        1. If no relevant information was found, clearly state that
+        2. Don't mention the internal steps or tools used
+        3. Focus on providing a direct, informative answer
+        4. If the information seems insufficient, acknowledge that
+        """
+        
+        try:
+            return await self.llm.achat(query=prompt)
+        except Exception as e:
+            logger.error(f"Error generating summary: {str(e)}")
             raise
 
     async def run(
@@ -149,61 +164,47 @@ class ReActAgent(BaseAgent):
         max_steps: int = 3,
         verbose: bool = False
     ) -> str:
-        """Execute the planning and execution process for a given task"""
-        
+        """Execute the plan and generate response"""
         if verbose:
-            print(Fore.BLUE + f"\nGenerating plan for task: {query}")
-            
-        # Generate initial plan
-        plan = await self._get_initial_plan(query)
-        
-        if verbose:
-            print(Fore.GREEN + "\nInitial Plan:")
-            for i, step in enumerate(plan.steps):
-                print(f"{i+1}. {step.description}")
-                if step.requires_tool:
-                    print(f"   Using tool: {step.tool_name}")
-                
-        while not plan.is_complete() and plan.current_step < max_steps:
-            current_step = plan.get_current_step()
-            
-            if verbose:
-                print(Fore.YELLOW + f"\nExecuting step {plan.current_step + 1}: {current_step.description}")
-                
-            try:
-                if current_step.requires_tool:
-                    result = await self._execute_tool(current_step)
-                else:
-                    # For non-tool steps, use LLM to execute
-                    result = await self.llm.achat(query=current_step.description)
-                    
-                plan.mark_current_complete(result)
-                # Reflect and potentially adjust plan
-                # if await self._reflect_and_adjust(plan, result):
-                #     if verbose:
-                #         print(Fore.MAGENTA + "\nPlan adjusted based on reflection")
-                        
-            except Exception as e:
-                logger.error(f"Error executing step: {str(e)}")
-                if verbose:
-                    print(Fore.RED + f"\nError in step {plan.current_step + 1}: {str(e)}")
-                break
-                
-        # Generate final summary
-        summary_prompt = f"""
-        Task completed. Create a summary of what was accomplished:
-        Original task: {query}
-        Steps completed: {plan.get_progress()}
-        Response result: {result}
-        """
+            print(Fore.BLUE + f"\nProcessing query: {query}")
         
         try:
-            summary = await self.llm.achat(query=summary_prompt)
-            return summary
+            # Generate plan
+            plan = await self._get_initial_plan(query)
+            
+            if verbose:
+                print(Fore.GREEN + "\nExecuting plan:")
+            
+            # Execute all steps and collect results
+            results = []
+            for step_num, step in enumerate(plan.steps, 1):
+                if step_num > max_steps:
+                    break
+                    
+                if verbose:
+                    print(Fore.YELLOW + f"\nStep {step_num}: {step.description}")
+                
+                try:
+                    if step.requires_tool:
+                        result = await self._execute_tool(step)
+                        if result is not None:
+                            results.append(result)
+                    else:
+                        # Non-tool step - use LLM directly
+                        result = await self.llm.achat(query=step.description)
+                        results.append(result)
+                        
+                except Exception as e:
+                    logger.error(f"Error in step {step_num}: {str(e)}")
+                    if step.is_required:
+                        raise
+                        
+            # Generate final summary
+            return await self._generate_summary(query, results)
             
         except Exception as e:
-            logger.error(f"Error generating summary: {str(e)}")
-            raise
+            logger.error(f"Error in run: {str(e)}")
+            return f"I apologize, but I encountered an error while processing your request: {str(e)}"
 
     async def _reflect_and_adjust(self, plan: ExecutionPlan, last_result: Any) -> bool:
         reflection_prompt = f"""
