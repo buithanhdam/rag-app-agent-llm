@@ -1,5 +1,5 @@
-from src.db.rag_manager import RAGManager
-from src.config import Settings
+from src.rag.rag_manager import RAGManager
+from src.config import Settings, RAGType
 # Example RAG Tool implementation
 def retrieve_documents(query: str) -> str:
     """
@@ -9,7 +9,8 @@ def retrieve_documents(query: str) -> str:
         query: Search query
     """
     settings = Settings()
-    rag_manager = RAGManager(
+    rag_manager = RAGManager.create_rag(
+            rag_type=RAGType.HYBRID,
             qdrant_url=settings.QDRANT_URL,
             gemini_api_key=settings.GEMINI_CONFIG.api_key,
             chunk_size=settings.RAG_CONFIG.chunk_size,

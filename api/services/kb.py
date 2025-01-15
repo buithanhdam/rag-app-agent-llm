@@ -6,9 +6,10 @@ from typing import Optional, Dict, Any
 
 from fastapi.responses import FileResponse
 from src.readers import parse_multiple_files, FileExtractor
-from src.db.rag_manager import RAGManager
+from rag.rag_manager import RAGManager
 from src.config import Settings
 from src.logger import get_formatted_logger
+from src.config import RAGType
 
 logger = get_formatted_logger(__file__)
 
@@ -27,7 +28,8 @@ class KnowledgeBaseService:
         # Initialize DoclingReader
         self.file_extractor = FileExtractor()
         # Initialize RAG Manager
-        self.rag_manager = RAGManager(
+        self.rag_manager = RAGManager.create_rag(
+            rag_type=RAGType.NORMAL,
             qdrant_url=settings.QDRANT_URL,
             gemini_api_key=settings.GEMINI_CONFIG.api_key,
             chunk_size=settings.RAG_CONFIG.chunk_size,

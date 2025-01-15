@@ -1,4 +1,5 @@
 # config.py
+import enum
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 import os
@@ -7,6 +8,14 @@ import dotenv
 dotenv.load_dotenv()
 
 from src.prompt import LLM_SYSTEM_PROMPT
+
+class RAGType(enum.Enum):
+    NORMAL = "normal_rag"
+    HYBRID = "hybrid_rag"
+    CONTEXTUAL = "contextual_rag"
+    FUSION = "fusion_rag"
+    HYDE = "hyde_rag"
+    NAIVE = "naive_rag"
 
 class ReaderConfig(BaseModel):
     """Configuration for DoclingReader"""
