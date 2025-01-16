@@ -21,14 +21,15 @@ These components of RAG allow the model to access up-to-date, accurate informati
 ## Advanced RAG Techniques⚙️
 Here are the details of all the Advanced RAG techniques covered in this repository.
 
-| Technique                    | Tools                        | Description                                                       |
-|---------------------------------|------------------------------|--------------------------------------------------------------|-----------|
-| Naive RAG      | LlamaIndex, Qdrant, Google Gemini                    | Combines retrieved data with LLMs for simple and effective responses.| 
-| Hybrid RAG      | LlamaIndex, Qdrant, Google Gemini                    | Combines vector search and traditional methods like BM25 for better information retrieval.|
-| Hyde RAG      | LlamaIndex, Qdrant, Google Gemini                    | Combine hybrid RAG and creates hypothetical document embeddings to find relevant information for a query.|
-| RAG fusion      | LlamaIndex, LangSmith, Qdrant, Google Gemini                    | Generates sub-queries, ranks documents with Reciprocal Rank Fusion, and uses top results for accurate responses.|
-| Contextual RAG      | LlamaIndex, Qdrant, Google Gemini, Anthropic                    | Compresses retrieved documents to keep only relevant details for concise and accurate responses.|
-| Unstructured RAG     | LlamaIndex, Qdrant, FAISS, Google Gemini, Unstructured                    | This method designed to handle documents that combine text, tables, and images.|
+| Technique       | Tools                                | Description                                                                                   |
+|-----------------|--------------------------------------|-----------------------------------------------------------------------------------------------|
+| Naive RAG       | LlamaIndex, Qdrant, Google Gemini    | Combines retrieved data with LLMs for simple and effective responses.                         |
+| Hybrid RAG      | LlamaIndex, Qdrant, Google Gemini    | Combines vector search and traditional methods like BM25 for better information retrieval.     |
+| Hyde RAG        | LlamaIndex, Qdrant, Google Gemini    | Combines hybrid RAG and creates hypothetical document embeddings to find relevant information. |
+| RAG fusion      | LlamaIndex, LangSmith, Qdrant, Google Gemini | Generates sub-queries, ranks documents with Reciprocal Rank Fusion, and uses top results for accurate responses. |
+| Contextual RAG  | LlamaIndex, Qdrant, Google Gemini, Anthropic | Compresses retrieved documents to keep only relevant details for concise and accurate responses. |
+| Unstructured RAG | LlamaIndex, Qdrant, FAISS, Google Gemini, Unstructured | Designed to handle documents that combine text, tables, and images.                            |
+
 
 ## Project Structure
 
