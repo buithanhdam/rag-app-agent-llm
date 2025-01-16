@@ -2,8 +2,8 @@
 from typing import Optional, Type
 from src.logger import get_formatted_logger
 from .base_rag import BaseRAGManager
-from .normal_rag import NormalRAGManager
-from .hybrid_rag import HybridRAGManager
+from .naive_rag import NaiveRAG
+from .hybrid_rag import HybridRAG
 from src.config import RAGType
 logger = get_formatted_logger(__file__)
 
@@ -13,13 +13,12 @@ class RAGManager:
     Factory class for managing different types of RAG implementations
     """
     _rag_implementations = {
-        RAGType.NORMAL: NormalRAGManager,
-        RAGType.HYBRID: HybridRAGManager,
+        RAGType.NAIVE: NaiveRAG,
+        RAGType.HYBRID: HybridRAG,
         # Add other implementations as they are created
         # RAGType.CONTEXTUAL: ContextualRAGManager,
         # RAGType.FUSION: FusionRAGManager,
         # RAGType.HYDE: HydeRAGManager,
-        # RAGType.NAIVE: NaiveRAGManager,
     }
 
     @classmethod

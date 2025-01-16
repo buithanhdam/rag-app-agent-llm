@@ -29,7 +29,7 @@ class KnowledgeBaseService:
         self.file_extractor = FileExtractor()
         # Initialize RAG Manager
         self.rag_manager = RAGManager.create_rag(
-            rag_type=RAGType.NORMAL,
+            rag_type=RAGType.NAIVE,
             qdrant_url=settings.QDRANT_URL,
             gemini_api_key=settings.GEMINI_CONFIG.api_key,
             chunk_size=settings.RAG_CONFIG.chunk_size,

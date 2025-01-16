@@ -8,7 +8,7 @@ from src.logger import get_formatted_logger
 from .base_rag import BaseRAGManager
 logger = get_formatted_logger(__file__)
 
-class NormalRAGManager(BaseRAGManager):
+class NaiveRAG(BaseRAGManager):
     """
     Standard RAG implementation using vector search
     """

@@ -1,5 +1,35 @@
 # agent-llm-rag-app
-This repository contains an implementation of agentic patterns such as **Planning (ReActAgent flow)** from [multi-agent](https://github.com/buithanhdam/multi-agent), [kotaemon](https://github.com/Cinnamon/kotaemon)
+- This repository contains an implementation of agentic patterns such as **Planning (ReActAgent flow)** from [multi-agent](https://github.com/buithanhdam/multi-agent) and [kotaemon](https://github.com/Cinnamon/kotaemon)
+
+## Introduction to RAG💡
+Large Language Models are trained on a fixed dataset, which limits their ability to handle private or recent information. They can sometimes "hallucinate", providing incorrect yet believable answers. Fine-tuning can help but it is expensive and not ideal for retraining again and again on new data. The Retrieval-Augmented Generation (RAG) framework addresses this issue by using external documents to improve the LLM's responses through in-context learning. RAG ensures that the information provided by the LLM is not only contextually relevant but also accurate and up-to-date.
+
+![final diagram](https://github.com/user-attachments/assets/508b3a87-ac46-4bf7-b849-145c5465a6c0)
+
+There are four main components in RAG:
+
+**Indexing:** First, documents (in any format) are split into chunks, and embeddings for these chunks are created. These embeddings are then added to a vector store.
+
+**Retriever:** Then, the retriever finds the most relevant documents based on the user's query, using techniques like vector similarity from the vector store.
+
+**Augment:** After that, the Augment part combines the user's query with the retrieved context into a prompt, ensuring the LLM has the information needed to generate accurate responses.
+
+**Generate:** Finally, the combined query and prompt are passed to the model, which then generates the final response to the user's query.
+
+These components of RAG allow the model to access up-to-date, accurate information and generate responses based on external knowledge. However, to ensure RAG systems are functioning effectively, it’s essential to evaluate their performance.
+
+## Advanced RAG Techniques⚙️
+Here are the details of all the Advanced RAG techniques covered in this repository.
+
+| Technique                    | Tools                        | Description                                                       |
+|---------------------------------|------------------------------|--------------------------------------------------------------|-----------|
+| Naive RAG      | LlamaIndex, Qdrant, Google Gemini                    | Combines retrieved data with LLMs for simple and effective responses.| 
+| Hybrid RAG      | LlamaIndex, Qdrant, Google Gemini                    | Combines vector search and traditional methods like BM25 for better information retrieval.|
+| Hyde RAG      | LlamaIndex, Qdrant, Google Gemini                    | Combine hybrid RAG and creates hypothetical document embeddings to find relevant information for a query.|
+| RAG fusion      | LlamaIndex, LangSmith, Qdrant, Google Gemini                    | Generates sub-queries, ranks documents with Reciprocal Rank Fusion, and uses top results for accurate responses.|
+| Contextual RAG      | LlamaIndex, Qdrant, Google Gemini, Anthropic                    | Compresses retrieved documents to keep only relevant details for concise and accurate responses.|
+| Unstructured RAG     | LlamaIndex, Qdrant, FAISS, Google Gemini, Unstructured                    | This method designed to handle documents that combine text, tables, and images.|
+
 ## Project Structure
 
 ```
@@ -40,8 +70,6 @@ This repository contains an implementation of agentic patterns such as **Plannin
 
 ---
 
----
-
 ## Installation and Setup
 
 ### Prerequisites
@@ -53,8 +81,8 @@ This repository contains an implementation of agentic patterns such as **Plannin
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/buithanhdam/multi-agent.git
-   cd multi-agent
+   git clone https://github.com/buithanhdam/agent-llm-rag-app.git
+   cd agent-llm-rag-app
    ```
 
 2. **Set up the virtual environment**

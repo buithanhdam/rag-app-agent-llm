@@ -12,7 +12,7 @@ from llama_index.core.node_parser import SentenceSplitter
 
 logger = get_formatted_logger(__file__)
 
-class HybridRAGManager(BaseRAGManager):
+class HybridRAG(BaseRAGManager):
     """
     Hybrid RAG implementation combining vector search and BM25 using Qdrant directly
     """
