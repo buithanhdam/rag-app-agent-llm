@@ -12,9 +12,9 @@ from llama_index.core.node_parser import SentenceSplitter
 
 logger = get_formatted_logger(__file__)
 
-class HybridRAG(BaseRAGManager):
+class HyDERAG(BaseRAGManager):
     """
-    Hybrid RAG implementation combining vector search and BM25 using Qdrant directly
+    HyDE RAG implementation Hybrid Rag and Hypothetical Document Embeddings using Qdrant directly
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -115,11 +115,17 @@ class HybridRAG(BaseRAGManager):
         score_threshold: int =0.5
     ) -> str:
         try:
+            # Step 1: Generate hypothetical document using LLM
+            hypothetical_prompt = f"""Generate a summary hypothetical document that could answer the following query:
+            Query:{query}
+            Hypothetical Document:"""
+            hypothetical_document = self.llm.complete(hypothetical_prompt).text.strip()
+            logger.info(hypothetical_document)
             
-            # Step 1: Convert user query to embedding
-            query_embedding = self.embedding_model.get_text_embedding(query)
+            # Step 2: Convert hypothetical document to embedding
+            query_embedding = self.embedding_model.get_text_embedding(hypothetical_document)
             
-            # Step 2: Perform vector search using query embedding
+            # Step 3: Perform vector search using hypothetical embedding
             normal_results = self.qdrant_client.search_vector(
                 collection_name=collection_name,
                 vector=query_embedding,
@@ -134,7 +140,7 @@ class HybridRAG(BaseRAGManager):
             )
             logger.info(normal_results)
             
-            # Step 3: BM25 retrieval
+            # Step 4: BM25 retrieval
             bm25_points = self.qdrant_client.search_vector(
                 collection_name=collection_name,
                 vector=query_embedding,
@@ -162,7 +168,7 @@ class HybridRAG(BaseRAGManager):
                 bm25_results = bm25_retriever.retrieve(query)
                 logger.info(bm25_results)
                 
-                # Step 4: Combine results
+                # Step 5: Combine results
                 all_texts = set()
                 contexts = []
                 
@@ -182,7 +188,7 @@ class HybridRAG(BaseRAGManager):
             else:
                 contexts = [result.payload["text"] for result in normal_results]
             
-            # Step 5: Generate final response
+             # Step 6: Generate final response
             prompt = f"""Given the following context and question, provide a comprehensive answer based solely on the provided context. If the context doesn't contain relevant information, say so.
 
 Context:

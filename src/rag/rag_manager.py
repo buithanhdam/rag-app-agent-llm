@@ -4,6 +4,7 @@ from src.logger import get_formatted_logger
 from .base_rag import BaseRAGManager
 from .naive_rag import NaiveRAG
 from .hybrid_rag import HybridRAG
+from.hyde_rag import HyDERAG
 from src.config import RAGType
 logger = get_formatted_logger(__file__)
 
@@ -18,7 +19,7 @@ class RAGManager:
         # Add other implementations as they are created
         # RAGType.CONTEXTUAL: ContextualRAGManager,
         # RAGType.FUSION: FusionRAGManager,
-        # RAGType.HYDE: HydeRAGManager,
+        RAGType.HYDE: HyDERAG,
     }
 
     @classmethod

@@ -70,8 +70,11 @@ class NaiveRAG(BaseRAGManager):
         score_threshold: int =0.5
     ) -> str:
         try:
+            
+            # Step 1: Convert user query to embedding
             query_embedding = self.embedding_model.get_text_embedding(query)
             
+            # Step 2: Perform vector search using query embedding
             results = self.qdrant_client.search_vector(
                 collection_name=collection_name,
                 vector=query_embedding,
@@ -87,6 +90,7 @@ class NaiveRAG(BaseRAGManager):
             
             contexts = [result.payload["text"] for result in results]
             
+            # Step 3: Generate final response
             prompt = f"""Given the following context and question, provide a comprehensive answer based solely on the provided context. If the context doesn't contain relevant information, say so.
 
 Context:
