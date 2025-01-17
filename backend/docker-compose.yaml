@@ -4,7 +4,7 @@ services:
   fastapi:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.backend
+      dockerfile: Dockerfile.backend
     ports:
       - "8000:8000"
     env_file:
@@ -20,7 +20,7 @@ services:
   streamlit:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.frontend
+      dockerfile: Dockerfile.streamlit
     ports:
       - "8501:8501"
     env_file:
