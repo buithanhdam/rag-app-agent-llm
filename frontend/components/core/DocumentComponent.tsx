@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Upload, FileText, Search } from 'lucide-react';
 
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000'
+
 export default function DocumentComponent() {
   const [file, setFile] = useState<File | null>(null);
   const [collectionName, setCollectionName] = useState('documents');
@@ -34,7 +36,7 @@ export default function DocumentComponent() {
     try {
       setUploadProgress(0);
       const response = await fetch(
-        `http://localhost:8000/kb/upload?collection_name=${collectionName}`,
+        `${BACKEND_API_URL}/kb/upload?collection_name=${collectionName}`,
         {
           method: 'POST',
           body: formData,

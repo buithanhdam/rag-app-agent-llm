@@ -13,6 +13,8 @@ interface Message {
   content: string;
 }
 
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000'
+
 export default function ChatComponent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -36,7 +38,7 @@ export default function ChatComponent() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/agent/chat', {
+      const response = await fetch(`${BACKEND_API_URL}/agent/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: input }),
@@ -64,7 +66,7 @@ export default function ChatComponent() {
 
   const resetChat = async () => {
     try {
-      await fetch('http://localhost:8000/agent/reset', { method: 'POST' });
+      await fetch(`${BACKEND_API_URL}/agent/reset`, { method: 'POST' });
       setMessages([]);
     } catch (error) {
       console.error('Error resetting chat:', error);
