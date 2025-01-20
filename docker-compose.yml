@@ -76,6 +76,23 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    env_file:
+      - ./backend/.env
+    environment:
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=1
+      - MYSQL_HOST=localhost
+      - MYSQL_PORT=3306
+      - MYSQL_DB=ragagent
+    volumes:
+      - ./backend/data/mysql_data:/var/lib/mysql
+    networks:
+      - rag-app-network
+    command: --default-authentication-plugin=mysql_native_password
 networks:
   rag-app-network:
     driver: bridge

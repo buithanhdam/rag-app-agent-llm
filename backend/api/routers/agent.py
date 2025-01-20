@@ -1,63 +1,40 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Dict, Any
-import asyncio
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from typing import List
 
-from api.services.agent import AgentChat
+from src.db.mysql import get_db
+from api.services.agent import AgentService
+from api.schemas.agent import (
+    AgentCreate, AgentUpdate, AgentResponse
+)
+from api.schemas.llm import LLMConfigResponse
 
-# Create router
 agent_router = APIRouter(prefix="/agent", tags=["agent"])
 
-# Request model
-class ChatRequest(BaseModel):
-    query: str
+@agent_router.post("/create", response_model=AgentResponse)
+async def create_agent(agent_create: AgentCreate, db: Session = Depends(get_db)):
+    return await AgentService.create_agent(db, agent_create)
 
-# Response model
-class ChatResponse(BaseModel):
-    response: str
+@agent_router.get("/get/{agent_id}", response_model=AgentResponse)
+async def get_agent(agent_id: int, db: Session = Depends(get_db)):
+    return await AgentService.get_agent(db, agent_id)
 
-# Response model for reset endpoint
-class ResetResponse(BaseModel):
-    status: str
-    message: str
+@agent_router.get("/get-all", response_model=List[AgentResponse])
+async def get_all_agents(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return await AgentService.get_all_agents(db, skip, limit)
 
-# Initialize agent chat globally
-agent_chat = AgentChat()
+@agent_router.put("/update/{agent_id}", response_model=AgentResponse)
+async def update_agent(agent_id: int, agent_update: AgentUpdate, db: Session = Depends(get_db)):
+    return await AgentService.update_agent(db, agent_id, agent_update)
 
-@agent_router.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
-    """
-    Endpoint for agent chat interaction
-    
-    Args:
-        request (ChatRequest): Contains the user query
-    
-    Returns:
-        ChatResponse: Agent's response to the query
-    """
-    try:
-        # Use the existing get_response method from AgentChat
-        response = await agent_chat.get_response(request.query)
-        return ChatResponse(response=response)
-    except Exception as e:
-        # Handle any potential errors
-        raise HTTPException(status_code=500, detail=str(e))
+@agent_router.delete("/delete/{agent_id}", response_model=bool)
+async def delete_agent(agent_id: int, db: Session = Depends(get_db)):
+    return await AgentService.delete_agent(db, agent_id)
 
-@agent_router.post("/reset", response_model=ResetResponse)
-async def reset_chat_endpoint():
-    """
-    Endpoint to reset the chat history
-    
-    Returns:
-        ResetResponse: Confirmation of chat history reset
-    """
-    try:
-        # Call the reset_chat method
-        agent_chat.reset_chat()
-        return ResetResponse(
-            status="success", 
-            message="Chat history has been successfully reset"
-        )
-    except Exception as e:
-        # Handle any potential errors
-        raise HTTPException(status_code=500, detail=str(e))
+@agent_router.post("/{agent_id}/link_llm_config", response_model=LLMConfigResponse)
+async def link_llm_config(agent_id: int, llm_config_id: int, db: Session = Depends(get_db)):
+    return await AgentService.link_llm_config(db, agent_id, llm_config_id)
+
+@agent_router.post("/{agent_id}/unlink_llm_config", response_model=bool)
+async def unlink_llm_config(agent_id: int, llm_config_id: int, db: Session = Depends(get_db)):
+    return await AgentService.unlink_llm_config(db, agent_id, llm_config_id)

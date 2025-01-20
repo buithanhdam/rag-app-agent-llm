@@ -98,6 +98,11 @@ OPENAI_API_KEY=<your_openai_api_key>
 ANTHROPIC_API_KEY=<your_anthropic_api_key>
 BACKEND_API_URL=http://localhost:8000
 QDRANT_URL=http://localhost:6333
+MYSQL_USER=your_mysql_user
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_HOST=your_mysql_host
+MYSQL_PORT=your_mysql_port
+MYSQL_DB=your_mysql_db
 ```
 
 ---

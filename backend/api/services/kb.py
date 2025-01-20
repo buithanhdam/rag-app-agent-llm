@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any
 
 from fastapi.responses import FileResponse
 from src.readers import parse_multiple_files, FileExtractor
-from rag.rag_manager import RAGManager
+from src.rag.rag_manager import RAGManager
 from src.config import Settings
 from src.logger import get_formatted_logger
 from src.config import RAGType

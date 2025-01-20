@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from api.routers.agent import agent_router  # Import the router we just created
 from api.routers.kb import kb_router
-
+from api.routers.llm import llm_router
 # Create FastAPI app
 app = FastAPI(
     title="Multi-Agent Chat API",
@@ -23,6 +23,7 @@ app.add_middleware(
 # Include the agent router
 app.include_router(agent_router)
 app.include_router(kb_router)
+app.include_router(llm_router)
 # Optional: Add a health check endpoint
 @app.get("/health")
 async def health_check():

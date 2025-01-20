@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     QDRANT_URL: str = os.getenv('QDRANT_URL', "http://qdrant:6333")
     GOOGLE_API_KEY: str = os.getenv('GOOGLE_API_KEY', '')
     BACKEND_API_URL: str = os.getenv('BACKEND_API_URL', 'http://localhost:8000')
+    MYSQL_USER : str=os.getenv('MYSQL_USER', 'user')
+    MYSQL_PASSWORD : str=os.getenv('MYSQL_PASSWORD', '1')
+    MYSQL_HOST : str=os.getenv('MYSQL_HOST', 'localhost')
+    MYSQL_PORT : str=os.getenv('MYSQL_PORT', '3306')
+    MYSQL_DB : str=os.getenv('MYSQL_DB', 'ragagent')
     
     # Component configurations
     READER_CONFIG: ReaderConfig = ReaderConfig()

@@ -4,3 +4,4 @@ from .extractor import FileExtractor
 #         str(file_path),
 #         extractor=file_extractor.get_extractor_for_file(file_path),
 #     ) text, metadata
+__all__=["parse_multiple_files","FileExtractor"]

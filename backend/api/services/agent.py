@@ -1,70 +1,69 @@
-import logging
-from typing import Optional, List
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 
-from src.agents import (
-    ReActAgent,
-    AgentOptions,
+from src.db.models import Agent, LLMConfig, LLMFoundation, AgentLLM, AgentConfig
+from api.schemas.agent import (
+    AgentCreate, AgentUpdate, AgentResponse,
 )
-# from src.tools.tool_manager import weather_tool
-from src.agents.llm import GeminiLLM
-from llama_index.core.llms import ChatMessage
-from src.tools.tool_manager import tool_manager
+from src.agents import ReActAgent, AgentOptions
+from src.agents.llm import GeminiLLM  # Import other LLM providers as needed
 
-class AgentChat:
-    def __init__(self):
-        # Initialize LLM
-        self.llm = GeminiLLM()
-        
-        # Logging setup
-        logging.basicConfig(level=logging.INFO)
-        self.logger = logging.getLogger(__name__)
-        
-        
-        self.planning_agent = ReActAgent(
-            self.llm,
-            AgentOptions(
-                id="planning",
-                name="Planning Assistant",
-                description="Assists with project planning, task breakdown, and using tool"
-            ),
-            tools=tool_manager.get_all_tools()
-        )
-        
-        # Chat history to provide context
-        self.chat_history: List[ChatMessage] = []
-    
-    async def get_response(self, user_input: str, verbose: bool = True) -> str:
-        """
-        Process user input by routing to appropriate agent
-        
-        Args:
-            user_input (str): User's query
-            verbose (bool): Whether to log detailed information
-        
-        Returns:
-            str: Agent's response
-        """
-        try:
-            # Process the input and get a response
-            response = await self.planning_agent.run(
-                query=user_input,
-                # chat_history=self.chat_history,
-                verbose=verbose
-            )
-            
-            # Update chat history
-            self.chat_history.append(ChatMessage(role="user", content=user_input))
-            self.chat_history.append(ChatMessage(role="assistant", content=response))
-            
-            # Trim chat history to last 5 messages to prevent context overflow
-            self.chat_history = self.chat_history[-10:]
-            
-            return response
-        
-        except Exception as e:
-            self.logger.error(f"Error in get_response: {e}")
-            return "I'm sorry, I encountered an error processing your request."
-    
-    def reset_chat(self):
-        """Reset the chat history"""
-        self.chat_history = []
+class AgentService:
+    @staticmethod
+    async def create_agent(db: Session, agent_create: AgentCreate) -> Agent:
+        agent = Agent(**agent_create.dict())
+        db.add(agent)
+        db.commit()
+        db.refresh(agent)
+        return agent
+
+    @staticmethod
+    async def get_agent(db: Session, agent_id: int) -> Optional[Agent]:
+        agent = db.query(Agent).filter(Agent.id == agent_id).first()
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        return agent
+
+    @staticmethod
+    async def get_all_agents(db: Session, skip: int = 0, limit: int = 100) -> List[Agent]:
+        return db.query(Agent).offset(skip).limit(limit).all()
+
+    @staticmethod
+    async def update_agent(db: Session, agent_id: int, agent_update: AgentUpdate) -> Agent:
+        agent = await AgentService.get_agent(db, agent_id)
+        update_data = agent_update.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(agent, field, value)
+        db.commit()
+        db.refresh(agent)
+        return agent
+
+    @staticmethod
+    async def delete_agent(db: Session, agent_id: int) -> bool:
+        agent = await AgentService.get_agent(db, agent_id)
+        db.delete(agent)
+        db.commit()
+        return True
+
+    @staticmethod
+    async def link_llm_config(db: Session, agent_id: int, llm_config_id: int) -> AgentConfig:
+        agent_config = AgentConfig(agent_id=agent_id, config_id=llm_config_id)
+        db.add(agent_config)
+        db.commit()
+        db.refresh(agent_config)
+        return agent_config
+
+    @staticmethod
+    async def unlink_llm_config(db: Session, agent_id: int, llm_config_id: int) -> bool:
+        agent_config = db.query(AgentConfig).filter(
+            AgentConfig.agent_id == agent_id,
+            AgentConfig.config_id == llm_config_id
+        ).first()
+        if not agent_config:
+            raise HTTPException(status_code=404, detail="LLM config not linked to agent")
+        db.delete(agent_config)
+        db.commit()
+        return True
