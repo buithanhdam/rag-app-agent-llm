@@ -103,6 +103,7 @@ MYSQL_PASSWORD=your_mysql_password
 MYSQL_HOST=your_mysql_host
 MYSQL_PORT=your_mysql_port
 MYSQL_DB=your_mysql_db
+MYSQL_ROOT_PASSWORD=root_password
 ```
 
 ---
@@ -147,6 +148,25 @@ streamlit run app_streamlit.py --server.port=8501 --server.address=0.0.0.0
 - **fastapi**: Exposes port `8000`.
 - **streamlit**: Exposes port `8501`.
 - **qdrant**: Exposes ports `6333` and `6334`.
+- **mysql**: Exposes port `3306`.
+
+### Set up mysql database
+
+```bash
+docker exec -it your-container-name mysql -u root -p 
+```
+
+- Fill your `root password`, for this project you can set root password from `.env` or `docker-compose.yml`
+- Then run sql query below:
+
+  ```bash
+  CREATE USER 'user'@'%' IDENTIFIED BY '1';
+  GRANT ALL PRIVILEGES ON ragagent.* TO 'user'@'%';
+  FLUSH PRIVILEGES;
+  ```
+  ```bash
+  CREATE DATABASE databasename;
+  ```
 
 ### Accessing Services
 

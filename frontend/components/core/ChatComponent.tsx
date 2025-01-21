@@ -1,93 +1,144 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Card } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
-import { MessageCircle, RotateCcw, Send } from 'lucide-react';
-import '@/css/spinner.css';
+import { MessageSquare, Plus, Send } from 'lucide-react';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000'
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
 
 export default function ChatComponent() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  type Conversation = {
+    id: string;
+    title: string;
   };
+  
+  type Message = {
+    role: 'user' | 'assistant';
+    content: string;
+  };
+  
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    fetchConversations();
+  }, []);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
-    
-    const userMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
+  const fetchConversations = async (): Promise<void> => {
     try {
-      const response = await fetch(`${BACKEND_API_URL}/agent/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: input }),
-      });
-
-      if (!response.ok) throw new Error('Failed to get response');
-      
-      const data = await response.json();
-      const assistantMessage: Message = { 
-        role: 'assistant', 
-        content: data.response 
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+      const response = await fetch(`${BACKEND_API_URL}/chat/conversations`);
+      if (!response.ok) throw new Error('Failed to fetch conversations');
+      const data: Conversation[] = await response.json();
+      setConversations(data);
     } catch (error) {
+      setError('Failed to load conversations');
       console.error('Error:', error);
-      const errorMessage: Message = { 
-        role: 'assistant', 
-        content: 'Sorry, there was an error processing your request.' 
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const resetChat = async () => {
+  const createNewConversation = async () => {
     try {
-      await fetch(`${BACKEND_API_URL}/agent/reset`, { method: 'POST' });
-      setMessages([]);
+      const response = await fetch(`${BACKEND_API_URL}/chat/conversations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'New Conversation',
+          agent_ids: [] // Add default agent IDs if needed
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to create conversation');
+      const newConversation = await response.json();
+      setConversations([...conversations, newConversation]);
+      setCurrentConversation(newConversation);
     } catch (error) {
-      console.error('Error resetting chat:', error);
+      setError('Failed to create new conversation');
+      console.error('Error:', error);
+    }
+  };
+
+  const sendMessage = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault();
+    if (!input.trim() || !currentConversation) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`${BACKEND_API_URL}/chat/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: currentConversation.id,
+          role: 'user',
+          content: input,
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to send message');
+      const newMessage: Message = await response.json();
+      setMessages([...messages, newMessage]);
+      setInput('');
+    } catch (error) {
+      setError('Failed to send message');
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectConversation = async (conversation: Conversation): Promise<void> => {
+    setCurrentConversation(conversation);
+    try {
+      const response = await fetch(`${BACKEND_API_URL}/chat/conversations/${conversation.id}`);
+      if (!response.ok) throw new Error('Failed to fetch conversation');
+      const data: { messages: Message[] } = await response.json();
+      setMessages(data.messages || []);
+    } catch (error) {
+      setError('Failed to load conversation');
+      console.error('Error:', error);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto p-4">
-      <Card className="flex-grow overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="w-5 h-5" />
-            <h2 className="text-xl font-semibold">Chat Interface</h2>
-          </div>
-          <Button variant="outline" onClick={resetChat}>
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reset Chat
-          </Button>
+    <div className="flex h-[calc(100vh-4rem)] max-w-6xl mx-auto">
+      {/* Sidebar */}
+      <div className="w-64 border-r bg-gray-50 p-4">
+        <Button 
+          className="w-full mb-4" 
+          onClick={createNewConversation}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          New Chat
+        </Button>
+        
+        <div className="space-y-2">
+          {conversations.map((conv) => (
+            <div
+              key={conv.id}
+              className={`p-2 rounded cursor-pointer flex items-center gap-2 ${
+                currentConversation?.id === conv.id 
+                  ? 'bg-blue-100' 
+                  : 'hover:bg-gray-100'
+              }`}
+              onClick={() => selectConversation(conv)}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="truncate">{conv.title || 'New Chat'}</span>
+            </div>
+          ))}
         </div>
+      </div>
 
-        <div className="flex-grow overflow-y-auto p-4 space-y-4">
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {error && (
+          <div className="bg-red-100 text-red-700 p-2 text-center">
+            {error}
+          </div>
+        )}
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((message, index) => (
             <div
               key={index}
@@ -106,31 +157,27 @@ export default function ChatComponent() {
               </div>
             </div>
           ))}
-          {isLoading && (
-            <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-lg p-3 bg-gray-100">
-                <div className="spinner"></div>
-                </div>
-            </div>
-            )}
-          <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 border-t">
-          <div className="flex gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Type your message..."
-              className="flex-grow"
-            />
-            <Button onClick={handleSend} disabled={isLoading}>
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </Card>
+        <form 
+          onSubmit={sendMessage} 
+          className="p-4 border-t flex gap-2"
+        >
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your message..."
+            disabled={!currentConversation || loading}
+            className="flex-1"
+          />
+          <Button 
+            type="submit"
+            disabled={!currentConversation || loading || !input.trim()}
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

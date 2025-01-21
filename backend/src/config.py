@@ -57,9 +57,11 @@ class Settings(BaseSettings):
     BACKEND_API_URL: str = os.getenv('BACKEND_API_URL', 'http://localhost:8000')
     MYSQL_USER : str=os.getenv('MYSQL_USER', 'user')
     MYSQL_PASSWORD : str=os.getenv('MYSQL_PASSWORD', '1')
-    MYSQL_HOST : str=os.getenv('MYSQL_HOST', 'localhost')
+    MYSQL_ROOT_PASSWORD : str=os.getenv('MYSQL_ROOT_PASSWORD', '1')
+    MYSQL_HOST : str=os.getenv('MYSQL_HOST', 'mysql')
     MYSQL_PORT : str=os.getenv('MYSQL_PORT', '3306')
     MYSQL_DB : str=os.getenv('MYSQL_DB', 'ragagent')
+    MYSQL_ALLOW_EMPTY_PASSWORD: str=os.getenv('MYSQL_ALLOW_EMPTY_PASSWORD', 'yes')
     
     # Component configurations
     READER_CONFIG: ReaderConfig = ReaderConfig()

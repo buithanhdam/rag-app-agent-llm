@@ -31,6 +31,11 @@ export default function Navbar() {
       icon: <Bot className="w-5 h-5" />,
     },
     {
+      path: '/llm',
+      label: 'LLM',
+      icon: <Bot className="w-5 h-5" />,
+    },
+    {
       path: '/settings',
       label: 'Settings',
       icon: <Settings className="w-5 h-5" />,
