@@ -10,6 +10,7 @@ const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://local
 interface Foundation {
     id: string;
     model_name: string;
+    model_id:string;
     provider: string;
     description: string;
   }
@@ -27,6 +28,7 @@ export default function LLMPage() {
       {
         id: '1',
         model_name: 'Sample Model 1',
+        model_id:"gpt-3.5",
         provider: 'OpenAI',
         description: 'Sample description for Model 1',
 
@@ -140,6 +142,7 @@ export default function LLMPage() {
               <Card key={foundation.id} className="p-4">
                 <h3 className="font-semibold">{foundation.model_name}</h3>
                 <p className="text-sm text-gray-600">{foundation.provider}</p>
+                <p className="text-sm text-gray-600">{foundation.model_id}</p>
                 <p className="text-sm mt-2">{foundation.description}</p>
                 <Button 
                   className="mt-4"
@@ -153,57 +156,83 @@ export default function LLMPage() {
         </Card>
       ) : (
         <Card className="p-6">
-          <h2 className="text-2xl font-bold mb-4">LLM Configurations</h2>
-          {selectedFoundation ? (
-            <div className="space-y-6">
-              <form onSubmit={handleCreateConfig} className="space-y-4">
-                <Input
-                  placeholder="Configuration Name"
-                  value={newConfig.name}
-                  onChange={(e) => setNewConfig({...newConfig, name: e.target.value})}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    placeholder="Temperature"
-                    value={newConfig.temperature}
-                    onChange={(e) => setNewConfig({...newConfig, temperature: parseFloat(e.target.value)})}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max Tokens"
-                    value={newConfig.max_tokens}
-                    onChange={(e) => setNewConfig({...newConfig, max_tokens: parseInt(e.target.value)})}
-                  />
-                </div>
-                <Textarea
-                  placeholder="System Prompt"
-                  value={newConfig.system_prompt}
-                  onChange={(e) => setNewConfig({...newConfig, system_prompt: e.target.value})}
-                />
-                <Button type="submit" disabled={loading}>
-                  Create Configuration
-                </Button>
-              </form>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                {configs.map((config) => (
-                  <Card key={config.id} className="p-4">
-                    <h3 className="font-semibold">{config.name}</h3>
-                    <div className="mt-2 space-y-2 text-sm">
-                      <p>Temperature: {config.temperature}</p>
-                      <p>Max Tokens: {config.max_tokens}</p>
-                      <p className="truncate">System Prompt: {config.system_prompt}</p>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+  <h2 className="text-2xl font-bold mb-4">LLM Configurations</h2>
+  {selectedFoundation ? (
+    <div className="space-y-6">
+      <form onSubmit={handleCreateConfig} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Configuration Name</label>
+          <Input
+            placeholder="Configuration Name"
+            value={newConfig.name}
+            onChange={(e) => setNewConfig({...newConfig, name: e.target.value})}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Temperature (0.1 - 1.0)</label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0.1"
+              max="1.0"
+              placeholder="Temperature"
+              value={newConfig.temperature}
+              onChange={(e) => {
+                const temp = parseFloat(e.target.value);
+                if (temp >= 0.1 && temp <= 1.0) {
+                  setNewConfig({...newConfig, temperature: temp});
+                }
+              }}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Max Tokens (1000 - 4000)</label>
+            <Input
+              type="number"
+              min="1000"
+              max="4000"
+              placeholder="Max Tokens"
+              value={newConfig.max_tokens}
+              onChange={(e) => {
+                const tokens = parseInt(e.target.value, 10);
+                if (tokens >= 1000 && tokens <= 4000) {
+                  setNewConfig({...newConfig, max_tokens: tokens});
+                }
+              }}
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">System Prompt</label>
+          <Textarea
+            placeholder="System Prompt"
+            value={newConfig.system_prompt}
+            onChange={(e) => setNewConfig({...newConfig, system_prompt: e.target.value})}
+          />
+        </div>
+        <Button type="submit" disabled={loading}>
+          Create Configuration
+        </Button>
+      </form>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+        {configs.map((config) => (
+          <Card key={config.id} className="p-4">
+            <h3 className="font-semibold">{config.name}</h3>
+            <div className="mt-2 space-y-2 text-sm">
+              <p>Temperature: {config.temperature}</p>
+              <p>Max Tokens: {config.max_tokens}</p>
+              <p className="truncate">System Prompt: {config.system_prompt}</p>
             </div>
-          ) : (
-            <p>Please select a foundation first</p>
-          )}
-        </Card>
+          </Card>
+        ))}
+      </div>
+    </div>
+  ) : (
+    <p>Please select a foundation first</p>
+  )}
+</Card>
+
       )}
     </div>
   );

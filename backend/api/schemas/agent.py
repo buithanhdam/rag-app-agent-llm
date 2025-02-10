@@ -1,10 +1,13 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-
+from src.db.models import AgentType
 class AgentCreate(BaseModel):
     name: str
-    agent_type: str
+    foundation_id: int
+    foundation_id: Optional[int] = None
+    agent_type: AgentType
+    config_id: Optional[int] = None
     description: Optional[str] = None
     configuration: Optional[Dict[str, Any]] = None
     tools: Optional[List[str]] = None

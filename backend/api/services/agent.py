@@ -4,66 +4,139 @@ from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from src.db.models import Agent, LLMConfig, LLMFoundation, AgentLLM, AgentConfig
-from api.schemas.agent import (
-    AgentCreate, AgentUpdate, AgentResponse,
-)
-from src.agents import ReActAgent, AgentOptions
-from src.agents.llm import GeminiLLM  # Import other LLM providers as needed
+from src.db.models import Agent, LLMConfig, LLMFoundation, AgentConversation
+from api.schemas.agent import AgentCreate, AgentUpdate, AgentResponse
 
 class AgentService:
     @staticmethod
     async def create_agent(db: Session, agent_create: AgentCreate) -> Agent:
-        agent = Agent(**agent_create.dict())
-        db.add(agent)
-        db.commit()
-        db.refresh(agent)
-        return agent
+        try:
+            # Create new agent instance
+            agent = Agent(
+                name=agent_create.name,
+                agent_type=agent_create.agent_type,
+                description=agent_create.description,
+                configuration=agent_create.configuration or {},
+                tools=agent_create.tools or []
+            )
+            
+            # If foundation_id is provided, verify it exists
+            if agent_create.foundation_id:
+                foundation = db.query(LLMFoundation).filter(
+                    LLMFoundation.id == agent_create.foundation_id,
+                    LLMFoundation.is_active == True
+                ).first()
+                if not foundation:
+                    raise HTTPException(status_code=404, detail="LLM Foundation not found")
+                agent.foundation_id = agent_create.foundation_id
+            
+            # If config_id is provided, verify it exists
+            if agent_create.config_id:
+                config = db.query(LLMConfig).filter(
+                    LLMConfig.id == agent_create.config_id
+                ).first()
+                if not config:
+                    raise HTTPException(status_code=404, detail="LLM Config not found")
+                agent.config_id = agent_create.config_id
+
+            db.add(agent)
+            db.commit()
+            db.refresh(agent)
+            return agent
+        except IntegrityError as e:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Invalid data provided")
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
 
     @staticmethod
     async def get_agent(db: Session, agent_id: int) -> Optional[Agent]:
-        agent = db.query(Agent).filter(Agent.id == agent_id).first()
+        agent = db.query(Agent).filter(
+            Agent.id == agent_id,
+            Agent.is_active == True
+        ).first()
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
         return agent
 
     @staticmethod
-    async def get_all_agents(db: Session, skip: int = 0, limit: int = 100) -> List[Agent]:
-        return db.query(Agent).offset(skip).limit(limit).all()
+    async def get_all_agents(
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        include_inactive: bool = False
+    ) -> List[Agent]:
+        query = db.query(Agent)
+        if not include_inactive:
+            query = query.filter(Agent.is_active == True)
+        return query.offset(skip).limit(limit).all()
 
     @staticmethod
     async def update_agent(db: Session, agent_id: int, agent_update: AgentUpdate) -> Agent:
-        agent = await AgentService.get_agent(db, agent_id)
-        update_data = agent_update.dict(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(agent, field, value)
-        db.commit()
-        db.refresh(agent)
-        return agent
+        try:
+            agent = await AgentService.get_agent(db, agent_id)
+            
+            # Update basic fields
+            update_data = agent_update.dict(exclude_unset=True)
+            
+            # Handle foundation_id update
+            if 'foundation_id' in update_data:
+                foundation = db.query(LLMFoundation).filter(
+                    LLMFoundation.id == update_data['foundation_id'],
+                    LLMFoundation.is_active == True
+                ).first()
+                if not foundation:
+                    raise HTTPException(status_code=404, detail="LLM Foundation not found")
+
+            # Handle config_id update
+            if 'config_id' in update_data:
+                config = db.query(LLMConfig).filter(
+                    LLMConfig.id == update_data['config_id']
+                ).first()
+                if not config:
+                    raise HTTPException(status_code=404, detail="LLM Config not found")
+
+            for field, value in update_data.items():
+                setattr(agent, field, value)
+
+            db.commit()
+            db.refresh(agent)
+            return agent
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Invalid data provided")
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
 
     @staticmethod
     async def delete_agent(db: Session, agent_id: int) -> bool:
+        try:
+            agent = await AgentService.get_agent(db, agent_id)
+            agent.is_active = False  # Soft delete
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    async def hard_delete_agent(db: Session, agent_id: int) -> bool:
+        try:
+            agent = await AgentService.get_agent(db, agent_id)
+            # Delete related conversations
+            db.query(AgentConversation).filter(
+                AgentConversation.agent_id == agent_id
+            ).delete()
+            
+            db.delete(agent)
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+    @staticmethod
+    async def get_agent_conversations(db: Session, agent_id: int) -> List[AgentConversation]:
         agent = await AgentService.get_agent(db, agent_id)
-        db.delete(agent)
-        db.commit()
-        return True
-
-    @staticmethod
-    async def link_llm_config(db: Session, agent_id: int, llm_config_id: int) -> AgentConfig:
-        agent_config = AgentConfig(agent_id=agent_id, config_id=llm_config_id)
-        db.add(agent_config)
-        db.commit()
-        db.refresh(agent_config)
-        return agent_config
-
-    @staticmethod
-    async def unlink_llm_config(db: Session, agent_id: int, llm_config_id: int) -> bool:
-        agent_config = db.query(AgentConfig).filter(
-            AgentConfig.agent_id == agent_id,
-            AgentConfig.config_id == llm_config_id
-        ).first()
-        if not agent_config:
-            raise HTTPException(status_code=404, detail="LLM config not linked to agent")
-        db.delete(agent_config)
-        db.commit()
-        return True
+        return agent.conversations

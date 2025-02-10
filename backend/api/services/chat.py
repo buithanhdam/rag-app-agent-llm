@@ -113,7 +113,7 @@ class ChatService:
         db.add(db_message)
         
         # If the message is from a user and an agent is specified, generate a response
-        if message.role == "user" and message.agent_id and message.llm_config_id:
+        if message.role == "user":
             agent = await ChatService.setup_agent(db, message.agent_id, message.llm_config_id)
             response = await agent.run(
                 query=message.content,
@@ -129,7 +129,6 @@ class ChatService:
                 llm_config_id=message.llm_config_id
             )
             db.add(agent_message)
-        
         db.commit()
         db.refresh(db_message)
         return db_message
