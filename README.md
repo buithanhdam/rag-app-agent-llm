@@ -1,8 +1,18 @@
-# agent-llm-rag-app
+# Agent-LLM-RAG-App
 
 - This repository contains an implementation of agentic patterns such as **Planning (ReActAgent flow)** from [multi-agent](https://github.com/buithanhdam/multi-agent) and [kotaemon](https://github.com/Cinnamon/kotaemon)
 
-## Introduction to RAG💡
+## Table of Contents
+
+1. [Introduction to RAG](#1-introduction-to-rag)
+2. [Advanced RAG Techniques](#2-advanced-rag-techniques)
+3. [Running Backend with Streamlit Separately](#3-running-backend-with-streamlit-separately)
+4. [Running the Entire Project with Docker and Docker Compose](#4-running-the-entire-project-with-docker-and-docker-compose)
+5. [Project Structure](#5-project-structure)
+
+---
+
+## 1. Introduction to RAG 💡
 
 Large Language Models are trained on a fixed dataset, which limits their ability to handle private or recent information. They can sometimes "hallucinate", providing incorrect yet believable answers. Fine-tuning can help but it is expensive and not ideal for retraining again and again on new data. The Retrieval-Augmented Generation (RAG) framework addresses this issue by using external documents to improve the LLM's responses through in-context learning. RAG ensures that the information provided by the LLM is not only contextually relevant but also accurate and up-to-date.
 
@@ -10,17 +20,16 @@ Large Language Models are trained on a fixed dataset, which limits their ability
 
 There are four main components in RAG:
 
-**Indexing:** First, documents (in any format) are split into chunks, and embeddings for these chunks are created. These embeddings are then added to a vector store.
-
-**Retriever:** Then, the retriever finds the most relevant documents based on the user's query, using techniques like vector similarity from the vector store.
-
-**Augment:** After that, the Augment part combines the user's query with the retrieved context into a prompt, ensuring the LLM has the information needed to generate accurate responses.
-
-**Generate:** Finally, the combined query and prompt are passed to the model, which then generates the final response to the user's query.
+1. **Indexing:** First, documents (in any format) are split into chunks, and embeddings for these chunks are created. These embeddings are then added to a vector store.
+2. **Retriever:** Then, the retriever finds the most relevant documents based on the user's query, using techniques like vector similarity from the vector store.
+3. **Augment:** After that, the Augment part combines the user's query with the retrieved context into a prompt, ensuring the LLM has the information needed to generate accurate responses.
+4. **Generate:** Finally, the combined query and prompt are passed to the model, which then generates the final response to the user's query.
 
 These components of RAG allow the model to access up-to-date, accurate information and generate responses based on external knowledge. However, to ensure RAG systems are functioning effectively, it’s essential to evaluate their performance.
 
-## Advanced RAG Techniques⚙️
+---
+
+## 2. Advanced RAG Techniques ⚙️
 
 Here are the details of all the Advanced RAG techniques covered in this repository.
 
@@ -35,83 +44,109 @@ Here are the details of all the Advanced RAG techniques covered in this reposito
 
 ---
 
-## 1. Running Backend with Streamlit Separately
+## 3. Running Backend only (with Streamlit Separately)
 
-If you want to run the backend with Streamlit separately, please follow the instructions in the `README.md` file located in the `backend` folder
+If you want to run the backend only (with Streamlit separately), please follow the instructions in the `README.md` file located in the `backend` folder
 
 For detailed instructions, see: [backend/README.md](backend/README.md)
 
-## 2. Running the Entire Project with Docker and Docker Compose
+---
 
-To run the entire project (including backend, frontend, and other services), you can use Docker and Docker Compose.
+## 4. Running the Entire Project with Docker and Docker Compose
 
-### Prerequisites
+### 4.1 Prerequisites
 
 - Docker: [Install Docker](https://docs.docker.com/get-docker/)
 - Docker Compose: [Install Docker Compose](https://docs.docker.com/compose/install/)
 
-### Steps
+### 4.2 Steps
 
-1. **Clone the Project**:
+#### 1. Clone the Project
 
-   ```bash
-    git clone https://github.com/buithanhdam/rag-app-agent-llm.git
-    cd rag-app-agent-llm
-   ```
+```bash
+git clone https://github.com/buithanhdam/rag-app-agent-llm.git
+cd rag-app-agent-llm
+```
 
-2. **Configure Environment Variables**:
+#### 2. Configure Environment Variables
 
-   - Create `.env` files in the `backend` and `frontend` folders (if needed) and fill in the required environment variables. For example:
+- Create `.env` files in the `backend` and `frontend` folders (if needed) and fill in the required environment variables. For example:
 
-   ```bash
-   cp ./frontend/.env.example ./frontend/.env
-   cp ./backend/.env.example ./backend/.env
-   ```
+```bash
+cp ./frontend/.env.example ./frontend/.env
+cp ./backend/.env.example ./backend/.env
+```
 
-   ```plaintext
-   #for backend .env
-   GOOGLE_API_KEY=<your_google_api_key>
-   OPENAI_API_KEY=<your_openai_api_key>
-   ANTHROPIC_API_KEY=<your_anthropic_api_key>
-   BACKEND_API_URL=http://localhost:8000
-   QDRANT_URL=http://localhost:6333
+```plaintext
+# For backend .env
+GOOGLE_API_KEY=<your_google_api_key>
+OPENAI_API_KEY=<your_openai_api_key>
+ANTHROPIC_API_KEY=<your_anthropic_api_key>
+BACKEND_API_URL=http://localhost:8000
+QDRANT_URL=http://localhost:6333
 
-   #for frontend .env
-   NEXT_PUBLIC_BACKEND_API_URL=http://localhost:8000
-   ```
+MYSQL_USER=your_mysql_user
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_HOST=your_mysql_host
+MYSQL_PORT=your_mysql_port
+MYSQL_DB=your_mysql_db
+MYSQL_ROOT_PASSWORD=root_password
 
-3. **Build and Run the Project**:
+# For frontend .env
+NEXT_PUBLIC_BACKEND_API_URL=http://localhost:8000
+```
 
-   ```bash
-   docker-compose up --build
-   ```
+#### 3. Build and Run the Project
 
-   This command will build and run all the services defined in `docker-compose.yml`.
+```bash
+docker-compose up --build
+```
 
-4. **Access the Application**:
+This command will build and run all the services defined in `docker-compose.yml`.
 
-   - **Frontend**: Open your browser and go to `http://localhost:3000`.
-   - **Backend**: The backend API will run on `http://localhost:8000`.
-   - **Streamlit**: If applicable, Streamlit will run on `http://localhost:8501`.
+#### 4. Set Up MySQL Database 
 
-5. **Stop the Project**:
+```bash
+docker exec -it your-container-name mysql -u root -p 
+```
 
-   To stop all services, run:
+- Enter `root password` (configured in `backend/.env` or `docker-compose.yml`).
+- Run the following SQL queries:
 
-   ```bash
-   docker-compose down
-   ```
+  ```bash
+  CREATE USER 'user'@'%' IDENTIFIED BY '1';
+  GRANT ALL PRIVILEGES ON ragagent.* TO 'user'@'%';
+  FLUSH PRIVILEGES;
+  ```
+  ```bash
+  CREATE DATABASE ragagent;
+  ```
 
-## 3. Project Structure
+#### 5. Access the Application
+
+- **Frontend**: Open your browser and go to `http://localhost:3000`.
+- **Backend**: The backend API will run on `http://localhost:8000`.
+- **qdrant**: Exposes ports `6333`, `6334`.
+- **mysql**: Exposes port `3306`.
+
+#### 6. Stop the Project
+
+To stop all services, run:
+
+```bash
+docker-compose down
+```
+
+---
+
+## 5. Project Structure
 
 - **backend/**: Contains the backend source code.
-
   - `README.md`: Instructions for running the backend with Streamlit separately.
   - `Dockerfile.backend`: Dockerfile for building the backend.
   - `requirements.txt`: Backend dependencies.
 
 - **frontend/**: Contains the frontend source code.
-
   - `Dockerfile.frontend`: Dockerfile for building the frontend.
   - `next.config.js`: Next.js configuration.
 
