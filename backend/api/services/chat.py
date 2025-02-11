@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from src.db.models import Conversation, Message, AgentConversation, Agent, LLMConfig
+from src.db.models import Conversation, Message, AgentConversation, Agent, LLMConfig, LLMProvider
 from api.schemas.chat import (
     ConversationCreate, ConversationUpdate, ConversationResponse,
     MessageCreate, MessageResponse
@@ -17,21 +17,22 @@ class ChatService:
     @staticmethod
     def create_llm_instance(llm_config: LLMConfig):
         """Create LLM instance based on provider and config"""
-        provider = llm_config.foundation.provider
-        if provider == "gemini":
+        provider = llm_config.llm_foundations.provider
+        print(provider)
+        if provider == LLMProvider.GEMINI:
             return GeminiLLM()
         # Add other providers as needed
         raise HTTPException(status_code=400, detail=f"Unsupported LLM provider: {provider}")
 
     @staticmethod
-    async def setup_agent(db: Session, agent_id: int, llm_config_id: int) -> ReActAgent:
+    async def setup_agent(db: Session, agent_id: int) -> ReActAgent:
         """Setup agent with specified LLM config"""
         # Get agent and config
         agent = db.query(Agent).filter(Agent.id == agent_id).first()
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
             
-        llm_config = db.query(LLMConfig).filter(LLMConfig.id == llm_config_id).first()
+        llm_config = db.query(LLMConfig).filter(LLMConfig.id == agent.config_id).first()
         if not llm_config:
             raise HTTPException(status_code=404, detail="LLM config not found")
 
@@ -57,12 +58,11 @@ class ChatService:
         db.add(conversation)
         db.flush()
 
-        for agent_id in conv_create.agent_ids:
-            agent_conv = AgentConversation(
-                agent_id=agent_id,
-                conversation_id=conversation.id
-            )
-            db.add(agent_conv)
+        agent_conv = AgentConversation(
+            agent_id=conv_create.agent_id,
+            conversation_id=conversation.id
+        )
+        db.add(agent_conv)
 
         try:
             db.commit()
@@ -112,23 +112,25 @@ class ChatService:
         db_message = Message(**message.dict())
         db.add(db_message)
         
+        agent_conversation = db.query(AgentConversation)\
+            .filter(AgentConversation.conversation_id == message.conversation_id)\
+            .first()
         # If the message is from a user and an agent is specified, generate a response
         if message.role == "user":
-            agent = await ChatService.setup_agent(db, message.agent_id, message.llm_config_id)
+            agent = await ChatService.setup_agent(db, agent_conversation.agent_id)
             response = await agent.run(
                 query=message.content,
                 verbose=True
             )
-            
+            print(response)
             # Add the agent's response as a new message
             agent_message = Message(
                 conversation_id=message.conversation_id,
                 role="assistant",
                 content=response,
-                agent_id=message.agent_id,
-                llm_config_id=message.llm_config_id
             )
             db.add(agent_message)
-        db.commit()
-        db.refresh(db_message)
-        return db_message
+            db.commit()
+            db.refresh(agent_message)
+            return agent_message
+        raise HTTPException(status_code=500, detail="Message should be from user role")
