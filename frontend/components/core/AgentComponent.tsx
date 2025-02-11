@@ -63,7 +63,8 @@ export default function AgentComponent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [toolInput, setToolInput] = useState('');
   const [selectedFoundationId, setSelectedFoundationId] = useState<number>();
-  
+  const [editingConfigs, setEditingConfigs] = useState<Config[]>([]);
+  console.log(editingAgent)
   const initialFormData: AgentFormData = {
     name: '',
     agent_type: 'react',
@@ -80,6 +81,13 @@ export default function AgentComponent() {
     fetchAgents();
     fetchFoundations();
   }, []);
+
+  useEffect(() => {
+    if (editingAgent?.foundation_id) {
+      fetchConfigsForFoundation(editingAgent.foundation_id)
+        .then(configs => setEditingConfigs(configs));
+    }
+  }, [editingAgent?.foundation_id]);
 
   useEffect(() => {
     if (selectedFoundationId) {
@@ -123,6 +131,7 @@ export default function AgentComponent() {
       if (!response.ok) throw new Error('Failed to fetch configs');
       const data = await response.json();
       setConfigs(data);
+      return data;
     } catch (error) {
       toast({
         title: "Error",
@@ -204,6 +213,18 @@ export default function AgentComponent() {
       foundation_id: numericId,
       config_id: undefined,
     });
+  };
+
+  const getFoundationName = (foundationId?: number) => {
+    if (!foundationId) return undefined;
+    const foundation = foundations.find(f => f.id === foundationId);
+    return foundation ? foundation.model_name : undefined;
+  };
+  
+  const getConfigName = (configId?: number) => {
+    if (!configId) return undefined;
+    const config = editingConfigs.find(c => c.id === configId);
+    return config ? config.name : undefined;
   };
   const handleDeleteAgent = async (agentId: number) => {
     if (!confirm('Are you sure you want to delete this agent?')) return;
@@ -429,13 +450,57 @@ export default function AgentComponent() {
                               }
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Select agent type" />
+                              <SelectValue>
+                                {editingAgent.agent_type === 'react' ? 'React' : 'Reflection'}
+                              </SelectValue>
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="react">React</SelectItem>
                                 <SelectItem value="reflection">Reflection</SelectItem>
                               </SelectContent>
                             </Select>
+                            <Select
+                            value={editingAgent.foundation_id?.toString()}
+                            onValueChange={(e) => setEditingAgent({
+                              ...editingAgent,
+                              foundation_id: parseInt(e)
+                            })}
+                          >
+                            <SelectTrigger>
+                            <SelectValue>
+                              {getFoundationName(editingAgent.foundation_id) || "Select foundation"}
+                            </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {foundations.map((foundation) => (
+                                
+                                <SelectItem key={foundation.id} value={foundation.id.toString()}>
+                                  {foundation.model_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={editingAgent.config_id?.toString()}
+                            onValueChange={(e) => setEditingAgent({
+                              ...editingAgent,
+                              config_id: parseInt(e)
+                            })}
+                          >
+                            <SelectTrigger>
+                            <SelectValue>
+                              {getConfigName(editingAgent.config_id) || "Select config"}
+                            </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {configs.map((config) => (
+                                
+                                <SelectItem key={config.id} value={config.id.toString()}>
+                                  {config.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                             <Textarea
                               placeholder="Description"
                               value={editingAgent.description}

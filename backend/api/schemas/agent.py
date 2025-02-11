@@ -4,7 +4,6 @@ from datetime import datetime
 from src.db.models import AgentType
 class AgentCreate(BaseModel):
     name: str
-    foundation_id: int
     foundation_id: Optional[int] = None
     agent_type: AgentType
     config_id: Optional[int] = None
@@ -23,6 +22,8 @@ class AgentUpdate(BaseModel):
 class AgentResponse(BaseModel):
     id: int
     name: str
+    foundation_id: int
+    config_id:int
     agent_type: str
     description: Optional[str]
     created_at: datetime
