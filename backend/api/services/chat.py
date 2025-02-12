@@ -4,9 +4,9 @@ from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from src.db.models import Conversation, Message, AgentConversation, Agent, LLMConfig, LLMProvider
+from src.db.models import Conversation, Message, AgentConversation, Agent, LLMConfig, LLMProvider, AgentCommunication, CommunicationConversation
 from api.schemas.chat import (
-    ConversationCreate, ConversationUpdate, ConversationResponse,
+    CommunicationConversationCreate, ConversationCreate, ConversationUpdate, ConversationResponse,
     MessageCreate, MessageResponse
 )
 from src.agents import ReActAgent, AgentOptions
@@ -71,7 +71,42 @@ class ChatService:
         except IntegrityError:
             db.rollback()
             raise HTTPException(status_code=400, detail="Invalid agent IDs")
+    @staticmethod
+    async def create_communication_conversation(
+        db: Session,
+        conv_create: CommunicationConversationCreate
+    ) -> Conversation:
+        # Verify communication exists and is active
+        communication = db.query(AgentCommunication).filter(
+            AgentCommunication.id == conv_create.communication_id,
+            AgentCommunication.is_active == True
+        ).first()
+        if not communication:
+            raise HTTPException(status_code=404, detail="Communication not found")
+        
+        # Create conversation
+        conversation = Conversation(title=conv_create.title)
+        db.add(conversation)
+        db.flush()
 
+        # Link conversation to communication
+        comm_conv = CommunicationConversation(
+            communication_id=communication.id,
+            conversation_id=conversation.id
+        )
+        db.add(comm_conv)
+
+        # Add all communication agents to conversation
+        for agent in communication.agents:
+            agent_conv = AgentConversation(
+                agent_id=agent.id,
+                conversation_id=conversation.id
+            )
+            db.add(agent_conv)
+
+        db.commit()
+        db.refresh(conversation)
+        return conversation
     @staticmethod
     async def get_conversation(db: Session, conversation_id: int) -> Optional[Conversation]:
         conversation = db.query(Conversation)\
@@ -87,6 +122,13 @@ class ChatService:
         if agent_id:
             query = query.join(AgentConversation)\
                         .filter(AgentConversation.agent_id == agent_id)
+        return query.offset(skip).limit(limit).all()
+    @staticmethod
+    async def get_all_communication_conversations(db: Session, skip: int = 0, limit: int = 100, communication_id: Optional[int] = None) -> List[Conversation]:
+        query = db.query(Conversation)
+        if communication_id:
+            query = query.join(CommunicationConversation)\
+                        .filter(CommunicationConversation.communication_id == communication_id)
         return query.offset(skip).limit(limit).all()
 
     @staticmethod

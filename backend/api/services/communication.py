@@ -10,7 +10,7 @@ from src.db.models import (
 )
 from api.schemas.communication import (
     AgentCommunicationCreate, AgentCommunicationUpdate,
-    AgentCommunicationMemberCreate, CommunicationConversationCreate
+    AgentCommunicationMemberCreate
 )
 
 class CommunicationService:
@@ -84,38 +84,6 @@ class CommunicationService:
         communication.is_active = False
         db.commit()
         return True
-
-    @staticmethod
-    async def create_communication_conversation(
-        db: Session,
-        conv_create: CommunicationConversationCreate
-    ) -> Conversation:
-        # Verify communication exists and is active
-        communication = await CommunicationService.get_communication(db, conv_create.communication_id)
-        
-        # Create conversation
-        conversation = Conversation(title=conv_create.title)
-        db.add(conversation)
-        db.flush()
-
-        # Link conversation to communication
-        comm_conv = CommunicationConversation(
-            communication_id=communication.id,
-            conversation_id=conversation.id
-        )
-        db.add(comm_conv)
-
-        # Add all communication agents to conversation
-        for agent in communication.agents:
-            agent_conv = AgentConversation(
-                agent_id=agent.id,
-                conversation_id=conversation.id
-            )
-            db.add(agent_conv)
-
-        db.commit()
-        db.refresh(conversation)
-        return conversation
 
     @staticmethod
     async def get_communication_agents(db: Session, communication_id: int) -> List[Agent]:

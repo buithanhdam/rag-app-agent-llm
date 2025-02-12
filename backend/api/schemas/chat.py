@@ -5,7 +5,9 @@ from datetime import datetime
 class ConversationCreate(BaseModel):
     title: Optional[str] = None
     agent_id: int
-
+class CommunicationConversationCreate(BaseModel):
+    communication_id: int
+    title: Optional[str] = None
 class ConversationUpdate(BaseModel):
     title: Optional[str] = None
     is_active: Optional[bool] = None

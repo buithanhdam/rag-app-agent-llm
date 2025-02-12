@@ -53,6 +53,18 @@ export default function ChatComponent() {
     fetchCommunications();
   }, []);
 
+  useEffect(() => {
+    if (selectedAgent?.id) {
+      fetchConversations(selectedAgent.id, true);
+    }
+  }, [selectedAgent]);
+  
+  useEffect(() => {
+    if (selectedCommunication?.id) {
+      fetchConversations(selectedCommunication.id, false);
+    }
+  }, [selectedCommunication]);
+
   const fetchAgents = async (): Promise<void> => {
     try {
       const response = await fetch(`${BACKEND_API_URL}/agent/get-all`);
@@ -79,27 +91,24 @@ export default function ChatComponent() {
   console.log(chatMode)
   console.log(selectedCommunication)
   console.log(selectedAgent)
-  const fetchConversations = async (): Promise<void> => {
-    if (!selectedAgent && !selectedCommunication) return;
-    
-    try {
-      let url = '';
-      if (chatMode === 'agent' && selectedAgent) {
-        url = `${BACKEND_API_URL}/chat/conversations?agent_id=${selectedAgent.id}`;
-      } else if (chatMode === 'communication' && selectedCommunication) {
-        url = `${BACKEND_API_URL}/communication/${selectedCommunication.id}/conversations`;
-      }
-      console.log('here')
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch conversations');
-      const data: Conversation[] = await response.json();
-      console.log(data)
-      setConversations(data);
-    } catch (error) {
-      setError('Failed to load conversations');
-      console.error('Error:', error);
-    }
-  };
+  const fetchConversations = async (id: number | undefined, is_agent: boolean = true): Promise<void> => {
+  if (!id) return; // Ngăn chặn gọi API nếu id chưa có
+
+  try {
+    let url = is_agent
+      ? `${BACKEND_API_URL}/chat/conversations/agent/get-all?agent_id=${id}`
+      : `${BACKEND_API_URL}/chat/conversations/communication/get-all?communication_id=${id}`;
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch conversations');
+
+    const data: Conversation[] = await response.json();
+    setConversations(data);
+  } catch (error) {
+    setError('Failed to load conversations');
+    console.error('Error:', error);
+  }
+};
 
   const createNewConversation = async () => {
     if (!selectedAgent && !selectedCommunication) return;
@@ -109,13 +118,13 @@ export default function ChatComponent() {
       let body = {};
       
       if (chatMode === 'agent' && selectedAgent) {
-        url = `${BACKEND_API_URL}/chat/conversations`;
+        url = `${BACKEND_API_URL}/chat/conversations/agent/create`;
         body = {
           title: `Chat with ${selectedAgent.name}`,
           agent_id: selectedAgent.id
         };
       } else if (chatMode === 'communication' && selectedCommunication) {
-        url = `${BACKEND_API_URL}/communication/conversations`;
+        url = `${BACKEND_API_URL}/chat/conversations/communication/create`;
         body = {
           communication_id: selectedCommunication.id,
           title: `Group chat: ${selectedCommunication.name}`
@@ -236,12 +245,9 @@ export default function ChatComponent() {
 
         {chatMode === 'agent' ? (
           <Select onValueChange={(value) => {
-            const agent = agents.find(a => a.id === parseInt(value));
+            const agent= agents.find(a => a.id === parseInt(value));
             setSelectedAgent(agent || null);
-            setCurrentConversation(null);
-            setMessages([]);
-            setConversations([]);
-            fetchConversations();
+            setCurrentConversation(null);setMessages([]);setConversations([]); 
           }}>
             <SelectTrigger>
               <SelectValue placeholder="Select an agent" />
@@ -261,10 +267,7 @@ export default function ChatComponent() {
           <Select onValueChange={(value) => {
             const comm = communications.find(c => c.id === parseInt(value));
             setSelectedCommunication(comm || null);
-            setCurrentConversation(null);
-            setMessages([]);
-            setConversations([]);
-            fetchConversations();
+            setCurrentConversation(null);setMessages([]);setConversations([]); 
           }}>
             <SelectTrigger>
               <SelectValue placeholder="Select a group" />

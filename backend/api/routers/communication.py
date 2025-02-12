@@ -6,7 +6,7 @@ from src.db.mysql import get_db
 from api.services.communication import CommunicationService
 from api.schemas.communication import (
     AgentCommunicationCreate, AgentCommunicationUpdate,
-    AgentCommunicationResponse, CommunicationConversationCreate
+    AgentCommunicationResponse
 )
 from api.schemas.chat import ConversationResponse, MessageResponse
 from api.schemas.agent import AgentResponse
@@ -28,10 +28,9 @@ async def get_communication(communication_id: int, db: Session = Depends(get_db)
 async def get_all_communications(
     skip: int = 0,
     limit: int = 100,
-    agent_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
-    return await CommunicationService.get_all_communications(db, skip, limit, agent_id)
+    return await CommunicationService.get_all_communications(db, skip, limit)
 
 @communication_router.put("/{communication_id}", response_model=AgentCommunicationResponse)
 async def update_communication(
@@ -44,13 +43,6 @@ async def update_communication(
 @communication_router.delete("/{communication_id}", response_model=bool)
 async def delete_communication(communication_id: int, db: Session = Depends(get_db)):
     return await CommunicationService.delete_communication(db, communication_id)
-
-@communication_router.post("/conversations", response_model=ConversationResponse)
-async def create_communication_conversation(
-    conv_create: CommunicationConversationCreate,
-    db: Session = Depends(get_db)
-):
-    return await CommunicationService.create_communication_conversation(db, conv_create)
 
 @communication_router.get("/{communication_id}/agents", response_model=List[AgentResponse])
 async def get_communication_agents(communication_id: int, db: Session = Depends(get_db)):

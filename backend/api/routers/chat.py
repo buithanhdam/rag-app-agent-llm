@@ -6,22 +6,34 @@ from src.db.mysql import get_db
 from api.services.chat import ChatService
 from api.schemas.chat import (
     ConversationCreate, ConversationUpdate, ConversationResponse,
-    MessageCreate, MessageResponse
+    MessageCreate, MessageResponse,CommunicationConversationCreate
 )
 
 chat_router = APIRouter(prefix="/chat", tags=["chat"])
 
-@chat_router.post("/conversations", response_model=ConversationResponse)
+@chat_router.post("/conversations/agent/create", response_model=ConversationResponse)
 async def create_conversation(conv_create: ConversationCreate, db: Session = Depends(get_db)):
     return await ChatService.create_conversation(db, conv_create)
+
+@chat_router.get("/conversations/agent/get-all", response_model=List[ConversationResponse])
+async def get_all_conversations(skip: int = 0, limit: int = 100, agent_id: Optional[int] = None, db: Session = Depends(get_db)):
+    return await ChatService.get_all_conversations(db, skip, limit, agent_id)
+
+@chat_router.post("/conversations/communication/create", response_model=ConversationResponse)
+async def create_communication_conversation(
+    conv_create: CommunicationConversationCreate,
+    db: Session = Depends(get_db)
+):
+    return await ChatService.create_communication_conversation(db, conv_create)
+
+@chat_router.get("/conversations/communication/get-all", response_model=List[ConversationResponse])
+async def get_all_communication_conversations(skip: int = 0, limit: int = 100, communication_id: Optional[int] = None, db: Session = Depends(get_db)):
+    return await ChatService.get_all_communication_conversations(db, skip, limit, communication_id)
+
 
 @chat_router.get("/conversations/{conversation_id}", response_model=ConversationResponse)
 async def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
     return await ChatService.get_conversation(db, conversation_id)
-
-@chat_router.get("/conversations", response_model=List[ConversationResponse])
-async def get_all_conversations(skip: int = 0, limit: int = 100, agent_id: Optional[int] = None, db: Session = Depends(get_db)):
-    return await ChatService.get_all_conversations(db, skip, limit, agent_id)
 
 @chat_router.put("/conversations/{conversation_id}", response_model=ConversationResponse)
 async def update_conversation(conversation_id: int, conv_update: ConversationUpdate, db: Session = Depends(get_db)):

@@ -30,10 +30,6 @@ class AgentCommunicationResponse(BaseModel):
     configuration: Optional[Dict[str, Any]]
     agents: List[AgentResponse]  # Reuse existing AgentResponse
 
-class CommunicationConversationCreate(BaseModel):
-    communication_id: int
-    title: Optional[str] = None
-
 class CommunicationMessageCreate(BaseModel):
     conversation_id: int
     role: str
