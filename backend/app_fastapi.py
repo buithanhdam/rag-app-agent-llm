@@ -5,6 +5,7 @@ from api.routers.agent import agent_router  # Import the router we just created
 from api.routers.kb import kb_router
 from api.routers.llm import llm_router
 from api.routers.chat import chat_router
+from api.routers.communication import communication_router
 # Create FastAPI app
 app = FastAPI(
     title="Multi-Agent Chat API",
@@ -26,6 +27,7 @@ app.include_router(agent_router)
 app.include_router(kb_router)
 app.include_router(llm_router)
 app.include_router(chat_router)
+app.include_router(communication_router)
 # Optional: Add a health check endpoint
 @app.get("/health")
 async def health_check():

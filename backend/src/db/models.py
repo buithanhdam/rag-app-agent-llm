@@ -8,6 +8,10 @@ from src.config import Settings
 settings = Settings()
 Base = declarative_base()
 
+class CommunicationRole(enum.Enum):
+    MANAGER = "manager"
+    MEMBER = "member"
+
 class RoleType(enum.Enum):
     USER = "user"
     ASSISTANT = "assistant"
@@ -42,6 +46,37 @@ class Agent(Base):
     llm_foundations = relationship("LLMFoundation", back_populates="agents")
     llm_configs = relationship("LLMConfig", back_populates="agents")
     conversations = relationship("Conversation", secondary="agent_conversations", back_populates="agents")
+    communications = relationship("AgentCommunication", secondary="agent_communication_members", back_populates="agents")
+    
+class AgentCommunication(Base):
+    __tablename__ = "agent_communications"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100))
+    description = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    is_active = Column(Boolean, default=True)
+    configuration = Column(JSON)  # Store communication-specific configuration
+    
+    # Relationships
+    agents = relationship("Agent", secondary="agent_communication_members", back_populates="communications")
+    conversations = relationship("Conversation", secondary="communication_conversations", back_populates="communications")
+class AgentCommunicationMember(Base):
+    __tablename__ = "agent_communication_members"
+    
+    communication_id = Column(Integer, ForeignKey("agent_communications.id"), primary_key=True)
+    agent_id = Column(Integer, ForeignKey("agents.id"), primary_key=True)
+    role = Column(Enum(CommunicationRole))  # e.g., "leader", "member"
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class CommunicationConversation(Base):
+    __tablename__ = "communication_conversations"
+    
+    communication_id = Column(Integer, ForeignKey("agent_communications.id"), primary_key=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 class LLMFoundation(Base):
     __tablename__ = "llm_foundations"
@@ -92,6 +127,7 @@ class Conversation(Base):
     # Relationships
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
     agents = relationship("Agent", secondary="agent_conversations", back_populates="conversations")
+    communications = relationship("AgentCommunication", secondary="communication_conversations", back_populates="conversations")
 class Message(Base):
     __tablename__ = "messages"
     

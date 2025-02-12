@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, Plus, Send, Users } from 'lucide-react';
+import { MessageSquare, Plus, Send, Users, User } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
 
@@ -14,6 +15,13 @@ export default function ChatComponent() {
     name: string;
     description: string;
     agent_type: string;
+  };
+
+  type Communication = {
+    id: number;
+    name: string;
+    description: string;
+    agents: Agent[];
   };
 
   type Conversation = {
@@ -29,16 +37,20 @@ export default function ChatComponent() {
   };
   
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [communications, setCommunications] = useState<Communication[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [selectedCommunication, setSelectedCommunication] = useState<Communication | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [chatMode, setChatMode] = useState<'agent' | 'communication'>('agent');
 
   useEffect(() => {
     fetchAgents();
+    fetchCommunications();
   }, []);
 
   const fetchAgents = async (): Promise<void> => {
@@ -53,11 +65,35 @@ export default function ChatComponent() {
     }
   };
 
-  const fetchConversations = async (agentId: number): Promise<void> => {
+  const fetchCommunications = async (): Promise<void> => {
     try {
-      const response = await fetch(`${BACKEND_API_URL}/chat/conversations?agent_id=${agentId}`);
+      const response = await fetch(`${BACKEND_API_URL}/communication`);
+      if (!response.ok) throw new Error('Failed to fetch communications');
+      const data: Communication[] = await response.json();
+      setCommunications(data);
+    } catch (error) {
+      setError('Failed to load communications');
+      console.error('Error:', error);
+    }
+  };
+  console.log(chatMode)
+  console.log(selectedCommunication)
+  console.log(selectedAgent)
+  const fetchConversations = async (): Promise<void> => {
+    if (!selectedAgent && !selectedCommunication) return;
+    
+    try {
+      let url = '';
+      if (chatMode === 'agent' && selectedAgent) {
+        url = `${BACKEND_API_URL}/chat/conversations?agent_id=${selectedAgent.id}`;
+      } else if (chatMode === 'communication' && selectedCommunication) {
+        url = `${BACKEND_API_URL}/communication/${selectedCommunication.id}/conversations`;
+      }
+      console.log('here')
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch conversations');
       const data: Conversation[] = await response.json();
+      console.log(data)
       setConversations(data);
     } catch (error) {
       setError('Failed to load conversations');
@@ -66,22 +102,37 @@ export default function ChatComponent() {
   };
 
   const createNewConversation = async () => {
-    if (!selectedAgent) return;
+    if (!selectedAgent && !selectedCommunication) return;
     
     try {
-      const response = await fetch(`${BACKEND_API_URL}/chat/conversations`, {
+      let url = '';
+      let body = {};
+      
+      if (chatMode === 'agent' && selectedAgent) {
+        url = `${BACKEND_API_URL}/chat/conversations`;
+        body = {
+          title: `Chat with ${selectedAgent.name}`,
+          agent_id: selectedAgent.id
+        };
+      } else if (chatMode === 'communication' && selectedCommunication) {
+        url = `${BACKEND_API_URL}/communication/conversations`;
+        body = {
+          communication_id: selectedCommunication.id,
+          title: `Group chat: ${selectedCommunication.name}`
+        };
+      }
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: `Chat with ${selectedAgent.name}`,
-          agent_ids: [selectedAgent.id]
-        }),
+        body: JSON.stringify(body),
       });
+      
       if (!response.ok) throw new Error('Failed to create conversation');
       const newConversation = await response.json();
       setConversations([...conversations, newConversation]);
       setCurrentConversation(newConversation);
-      setMessages([]); // Clear messages for new conversation
+      setMessages([]);
     } catch (error) {
       setError('Failed to create new conversation');
       console.error('Error:', error);
@@ -90,15 +141,13 @@ export default function ChatComponent() {
 
   const sendMessage = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
-    if (!input.trim() || !currentConversation || !selectedAgent) return;
+    if (!input.trim() || !currentConversation) return;
     
-    // Immediately add user message to UI
     const userMessage: Message = {
       role: 'user',
       content: input,
     };
     
-    // Add loading message placeholder
     const loadingMessage: Message = {
       role: 'assistant',
       content: 'Thinking...',
@@ -110,21 +159,25 @@ export default function ChatComponent() {
     setLoading(true);
 
     try {
+      const messageData = {
+        conversation_id: currentConversation.id,
+        role: 'user',
+        content: input,
+        ...(chatMode === 'agent' && selectedAgent 
+          ? { agent_id: selectedAgent.id }
+          : { communication_id: selectedCommunication?.id }
+        )
+      };
+
       const response = await fetch(`${BACKEND_API_URL}/chat/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversation_id: currentConversation.id,
-          role: 'user',
-          content: input,
-          agent_id: selectedAgent.id
-        }),
+        body: JSON.stringify(messageData),
       });
       
       if (!response.ok) throw new Error('Failed to send message');
       const newMessage = await response.json();
       
-      // Remove loading message and add actual response
       setMessages(prev => {
         const filtered = prev.filter(msg => !msg.pending);
         return [...filtered, {
@@ -136,51 +189,30 @@ export default function ChatComponent() {
     } catch (error) {
       setError('Failed to send message');
       console.error('Error:', error);
-      // Remove loading message if there was an error
       setMessages(prev => prev.filter(msg => !msg.pending));
     } finally {
       setLoading(false);
     }
   };
 
-  const selectConversation = async (conversation: Conversation): Promise<void> => {
-    setCurrentConversation(conversation);
-    try {
-      const response = await fetch(`${BACKEND_API_URL}/chat/conversations/${conversation.id}`);
-      if (!response.ok) throw new Error('Failed to fetch conversation');
-      const data: { messages: Message[] } = await response.json();
-      setMessages(data.messages || []);
-    } catch (error) {
-      setError('Failed to load conversation');
-      console.error('Error:', error);
-    }
-  };
-
-  const handleAgentSelect = (agentId: string) => {
-    const agent = agents.find(a => a.id === parseInt(agentId));
-    if (agent) {
-      setSelectedAgent(agent);
-      setCurrentConversation(null);
-      setMessages([]);
-      fetchConversations(agent.id);
-    }
+  const handleModeChange = (mode: 'agent' | 'communication') => {
+    setChatMode(mode);
+    setSelectedAgent(null);
+    setSelectedCommunication(null);
+    setCurrentConversation(null);
+    setMessages([]);
+    setConversations([]);
   };
 
   const MessageComponent = ({ message }: { message: Message }) => (
-    <div
-      className={`flex ${
-        message.role === 'user' ? 'justify-end' : 'justify-start'
-      }`}
-    >
-      <div
-        className={`max-w-[80%] rounded-lg p-3 ${
-          message.role === 'user'
-            ? 'bg-blue-500 text-white'
-            : message.pending
-            ? 'bg-gray-100 animate-pulse'
-            : 'bg-gray-100'
-        }`}
-      >
+    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[80%] rounded-lg p-3 ${
+        message.role === 'user'
+          ? 'bg-blue-500 text-white'
+          : message.pending
+          ? 'bg-gray-100 animate-pulse'
+          : 'bg-gray-100'
+      }`}>
         {message.content}
       </div>
     </div>
@@ -188,11 +220,29 @@ export default function ChatComponent() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] max-w-6xl mx-auto">
-      {/* Sidebar */}
       <div className="w-64 border-r bg-gray-50 p-4">
-        {/* Agent Selection */}
-        <div className="mb-6">
-          <Select onValueChange={handleAgentSelect}>
+        <Tabs defaultValue="agent" className="mb-6" onValueChange={(v) => handleModeChange(v as 'agent' | 'communication')}>
+          <TabsList className="w-full">
+            <TabsTrigger value="agent" className="flex-1">
+              <User className="w-4 h-4 mr-2" />
+              Agent
+            </TabsTrigger>
+            <TabsTrigger value="communication" className="flex-1">
+              <Users className="w-4 h-4 mr-2" />
+              Group
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {chatMode === 'agent' ? (
+          <Select onValueChange={(value) => {
+            const agent = agents.find(a => a.id === parseInt(value));
+            setSelectedAgent(agent || null);
+            setCurrentConversation(null);
+            setMessages([]);
+            setConversations([]);
+            fetchConversations();
+          }}>
             <SelectTrigger>
               <SelectValue placeholder="Select an agent" />
             </SelectTrigger>
@@ -200,21 +250,41 @@ export default function ChatComponent() {
               {agents.map((agent) => (
                 <SelectItem key={agent.id} value={agent.id.toString()}>
                   <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4" />
+                    <User className="w-4 h-4" />
                     {agent.name}
                   </div>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
+        ) : (
+          <Select onValueChange={(value) => {
+            const comm = communications.find(c => c.id === parseInt(value));
+            setSelectedCommunication(comm || null);
+            setCurrentConversation(null);
+            setMessages([]);
+            setConversations([]);
+            fetchConversations();
+          }}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a group" />
+            </SelectTrigger>
+            <SelectContent>
+              {communications.map((comm) => (
+                <SelectItem key={comm.id} value={comm.id.toString()}>
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    {comm.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
-        {selectedAgent && (
+        {(selectedAgent || selectedCommunication) && (
           <>
-            <Button 
-              className="w-full mb-4" 
-              onClick={createNewConversation}
-            >
+            <Button className="w-full my-4" onClick={createNewConversation}>
               <Plus className="w-4 h-4 mr-2" />
               New Chat
             </Button>
@@ -228,7 +298,7 @@ export default function ChatComponent() {
                       ? 'bg-blue-100' 
                       : 'hover:bg-gray-100'
                   }`}
-                  onClick={() => selectConversation(conv)}
+                  onClick={() => setCurrentConversation(conv)}
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span className="truncate">{conv.title}</span>
@@ -239,15 +309,14 @@ export default function ChatComponent() {
         )}
       </div>
 
-      {/* Chat Area */}
       <div className="flex-1 flex flex-col">
-        {!selectedAgent && (
+        {!selectedAgent && !selectedCommunication && (
           <div className="flex-1 flex items-center justify-center text-gray-500">
-            Please select an agent to start chatting
+            Please select an {chatMode === 'agent' ? 'agent' : 'group'} to start chatting
           </div>
         )}
 
-        {selectedAgent && (
+        {(selectedAgent || selectedCommunication) && (
           <>
             {error && (
               <div className="bg-red-100 text-red-700 p-2 text-center">
@@ -261,10 +330,7 @@ export default function ChatComponent() {
               ))}
             </div>
 
-            <form 
-              onSubmit={sendMessage} 
-              className="p-4 border-t flex gap-2"
-            >
+            <form onSubmit={sendMessage} className="p-4 border-t flex gap-2">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}

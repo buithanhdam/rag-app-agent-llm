@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { MessageSquare, Database, Bot, Settings } from 'lucide-react';
+import { MessageSquare, Database, Bot, Settings,Users, Brain } from 'lucide-react';
 
 interface NavItem {
   path: string;
@@ -26,6 +26,11 @@ export default function Navbar() {
       icon: <Database className="w-5 h-5" />,
     },
     {
+      path: '/communication',
+      label: 'Communication',
+      icon: <Users className="w-5 h-5" />,
+    },
+    {
       path: '/agent',
       label: 'Agent',
       icon: <Bot className="w-5 h-5" />,
@@ -33,7 +38,7 @@ export default function Navbar() {
     {
       path: '/llm',
       label: 'LLM',
-      icon: <Bot className="w-5 h-5" />,
+      icon: <Brain className="w-5 h-5" />,
     },
     {
       path: '/settings',
