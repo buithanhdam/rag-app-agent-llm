@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-
+from src.db.models import MessageType
 class ConversationCreate(BaseModel):
     title: Optional[str] = None
     agent_id: int
@@ -24,6 +24,7 @@ class MessageCreate(BaseModel):
     conversation_id: int
     role: str
     content: str
+    type: MessageType
 
 class MessageResponse(BaseModel):
     id: int

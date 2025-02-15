@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from src.db.models import Conversation, Message, AgentConversation, Agent, LLMConfig, LLMProvider, AgentCommunication, CommunicationConversation
+from src.db.models import Conversation, Message, AgentConversation, Agent, LLMConfig, LLMProvider, AgentCommunication, CommunicationConversation, MessageType
 from api.schemas.chat import (
     CommunicationConversationCreate, ConversationCreate, ConversationUpdate, ConversationResponse,
     MessageCreate, MessageResponse
@@ -49,7 +49,31 @@ class ChatService:
             ),
             tools=tool_manager.get_all_tools()
         )
+    # @staticmethod
+    # async def setup_communication(db: Session, communication_id: int) -> ReActAgent:
+    #     """Setup agent with specified LLM config"""
+    #     # Get agent and config
+    #     communication = db.query(AgentCommunication).filter(AgentCommunication.id == communication_id).first()
+    #     if not communication:
+    #         raise HTTPException(status_code=404, detail="Communication not found")
+            
+    #     llm_config = db.query(LLMConfig).filter(LLMConfig.id == communication.config_id).first()
+    #     if not llm_config:
+    #         raise HTTPException(status_code=404, detail="LLM config not found")
 
+    #     # Create LLM instance
+    #     llm = ChatService.create_llm_instance(llm_config)
+
+    #     # Create and return agent
+    #     return ReActAgent(
+    #         llm=llm,
+    #         options=AgentOptions(
+    #             id=str(communication.id),
+    #             name=communication.name,
+    #             description=communication.description
+    #         ),
+    #         tools=tool_manager.get_all_tools()
+    #     )
     @staticmethod
     async def create_conversation(db: Session, conv_create: ConversationCreate) -> Conversation:
         conversation = Conversation(
@@ -97,12 +121,12 @@ class ChatService:
         db.add(comm_conv)
 
         # Add all communication agents to conversation
-        for agent in communication.agents:
-            agent_conv = AgentConversation(
-                agent_id=agent.id,
-                conversation_id=conversation.id
-            )
-            db.add(agent_conv)
+        # for agent in communication.agents:
+        #     agent_conv = AgentConversation(
+        #         agent_id=agent.id,
+        #         conversation_id=conversation.id
+        #     )
+        #     db.add(agent_conv)
 
         db.commit()
         db.refresh(conversation)
@@ -151,25 +175,29 @@ class ChatService:
     @staticmethod
     async def add_message(db: Session, message: MessageCreate) -> Message:
         """Add a message to the conversation, optionally using an agent to generate a response."""
-        db_message = Message(**message.dict())
-        db.add(db_message)
-        
-        agent_conversation = db.query(AgentConversation)\
-            .filter(AgentConversation.conversation_id == message.conversation_id)\
-            .first()
         # If the message is from a user and an agent is specified, generate a response
         if message.role == "user":
-            agent = await ChatService.setup_agent(db, agent_conversation.agent_id)
-            response = await agent.run(
-                query=message.content,
-                verbose=True
-            )
+            if message.type == MessageType.AGENT:
+                agent_conversation = db.query(AgentConversation)\
+                    .filter(AgentConversation.conversation_id == message.conversation_id)\
+                    .first()
+                agent = await ChatService.setup_agent(db, agent_conversation.agent_id)
+                response = await agent.run(
+                    query=message.content,
+                    verbose=True
+                )
+            # else:
+            #     communication_conversation = db.query(CommunicationConversation)\
+            #         .filter(CommunicationConversation.conversation_id == message.conversation_id)\
+            #         .first()
+                
             print(response)
             # Add the agent's response as a new message
             agent_message = Message(
                 conversation_id=message.conversation_id,
                 role="assistant",
                 content=response,
+                type=MessageType.AGENT
             )
             db.add(agent_message)
             db.commit()

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
+type MessageType = 'agent' | 'communication';
 
 export default function ChatComponent() {
   type Agent = {
@@ -24,17 +25,19 @@ export default function ChatComponent() {
     agents: Agent[];
   };
 
-  type Conversation = {
-    id: string;
-    title: string;
-  };
-  
   type Message = {
     id?: number;
     role: 'user' | 'assistant';
     content: string;
     pending?: boolean;
   };
+
+  type Conversation = {
+    id: string;
+    title: string;
+    messages:Message[]
+  };
+  
   
   const [agents, setAgents] = useState<Agent[]>([]);
   const [communications, setCommunications] = useState<Communication[]>([]);
@@ -77,6 +80,17 @@ export default function ChatComponent() {
     }
   };
 
+  const fetchMessagesByConversation = async (conversation: Conversation): Promise<void> => {
+    try{
+      const response = await fetch(`${BACKEND_API_URL}/chat/chat/get-all?conversation_id=${conversation.id}`);
+      if (!response.ok) throw new Error('Failed to fetch messages');
+      const data: Message[] = await response.json();
+      setMessages(data);
+    }catch (error) {
+      setError('Failed to load messages');
+      console.error('Error:', error);
+    }
+  };
   const fetchCommunications = async (): Promise<void> => {
     try {
       const response = await fetch(`${BACKEND_API_URL}/communication`);
@@ -88,9 +102,9 @@ export default function ChatComponent() {
       console.error('Error:', error);
     }
   };
-  console.log(chatMode)
-  console.log(selectedCommunication)
-  console.log(selectedAgent)
+  // console.log(chatMode)
+  // console.log(selectedCommunication)
+  // console.log(selectedAgent)
   const fetchConversations = async (id: number | undefined, is_agent: boolean = true): Promise<void> => {
   if (!id) return; // Ngăn chặn gọi API nếu id chưa có
 
@@ -173,8 +187,8 @@ export default function ChatComponent() {
         role: 'user',
         content: input,
         ...(chatMode === 'agent' && selectedAgent 
-          ? { agent_id: selectedAgent.id }
-          : { communication_id: selectedCommunication?.id }
+          ? { type: "agent" }
+          : { type: "communication" }
         )
       };
 
@@ -301,7 +315,10 @@ export default function ChatComponent() {
                       ? 'bg-blue-100' 
                       : 'hover:bg-gray-100'
                   }`}
-                  onClick={() => setCurrentConversation(conv)}
+                  onClick={() => {
+                    setCurrentConversation(conv);
+                    setMessages(conv.messages)
+                  }}
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span className="truncate">{conv.title}</span>

@@ -27,6 +27,10 @@ class LLMProvider(enum.Enum):
     GEMINI = "gemini"
     ANTHROPIC = "anthropic"
 
+class MessageType(enum.Enum):
+    COMMUNICATION = "communication"
+    AGENT = "agent"
+
 class Agent(Base):
     __tablename__ = "agents"
     
@@ -135,6 +139,7 @@ class Message(Base):
     conversation_id = Column(Integer, ForeignKey("conversations.id"))
     role = Column(Enum(RoleType))
     content = Column(Text)
+    type = Column(Enum(MessageType))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")
