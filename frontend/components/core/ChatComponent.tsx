@@ -134,14 +134,14 @@ export default function ChatComponent() {
       if (chatMode === 'agent' && selectedAgent) {
         url = `${BACKEND_API_URL}/chat/conversations/agent/create`;
         body = {
-          title: `Chat with ${selectedAgent.name}`,
+          title: `Conversation ${selectedAgent.name}`,
           agent_id: selectedAgent.id
         };
       } else if (chatMode === 'communication' && selectedCommunication) {
         url = `${BACKEND_API_URL}/chat/conversations/communication/create`;
         body = {
           communication_id: selectedCommunication.id,
-          title: `Group chat: ${selectedCommunication.name}`
+          title: `Conversation ${selectedCommunication.name}`
         };
       }
 

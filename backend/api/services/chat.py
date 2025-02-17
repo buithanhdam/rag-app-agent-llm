@@ -10,7 +10,7 @@ from api.schemas.chat import (
     MessageCreate, MessageResponse
 )
 from src.agents import ReActAgent, AgentOptions
-from src.agents.llm import GeminiLLM  # Import other LLM providers as needed
+from src.agents.llm import UnifiedLLM # Import other LLM providers as needed
 from src.tools.tool_manager import tool_manager
 
 class ChatService:
@@ -18,9 +18,14 @@ class ChatService:
     def create_llm_instance(llm_config: LLMConfig):
         """Create LLM instance based on provider and config"""
         provider = llm_config.llm_foundations.provider
-        print(provider)
         if provider == LLMProvider.GEMINI:
-            return GeminiLLM()
+            return UnifiedLLM(
+                model_name= LLMProvider.GEMINI.value,
+                model_id= llm_config.llm_foundations.model_id,
+                temperature= llm_config.temperature,
+                max_tokens= llm_config.max_tokens,
+                system_prompt= llm_config.system_prompt
+            )
         # Add other providers as needed
         raise HTTPException(status_code=400, detail=f"Unsupported LLM provider: {provider}")
 
@@ -77,7 +82,7 @@ class ChatService:
     @staticmethod
     async def create_conversation(db: Session, conv_create: ConversationCreate) -> Conversation:
         conversation = Conversation(
-            title=conv_create.title
+            title=conv_create.title + " - " + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
         db.add(conversation)
         db.flush()
@@ -109,7 +114,7 @@ class ChatService:
             raise HTTPException(status_code=404, detail="Communication not found")
         
         # Create conversation
-        conversation = Conversation(title=conv_create.title)
+        conversation = Conversation(title=conv_create.title + " - " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         db.add(conversation)
         db.flush()
 
@@ -176,6 +181,11 @@ class ChatService:
     async def add_message(db: Session, message: MessageCreate) -> Message:
         """Add a message to the conversation, optionally using an agent to generate a response."""
         # If the message is from a user and an agent is specified, generate a response
+        db_message = Message(conversation_id=message.conversation_id,
+                role=message.role,
+                content=message.content,
+                type=message.type)
+        db.add(db_message)
         if message.role == "user":
             if message.type == MessageType.AGENT:
                 agent_conversation = db.query(AgentConversation)\
