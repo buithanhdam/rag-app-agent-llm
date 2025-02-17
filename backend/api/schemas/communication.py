@@ -3,24 +3,24 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from .agent import AgentResponse
 
-class AgentCommunicationCreate(BaseModel):
+class CommunicationCreate(BaseModel):
     name: str
     description: Optional[str] = None
     configuration: Optional[Dict[str, Any]] = None
     agent_ids: List[int]  # List of agent IDs to include in communication
 
-class AgentCommunicationUpdate(BaseModel):
+class CommunicationUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     configuration: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
 
-class AgentCommunicationMemberCreate(BaseModel):
+class CommunicationMemberCreate(BaseModel):
     communication_id: int
     agent_id: int
     role: Optional[str] = "member"
 
-class AgentCommunicationResponse(BaseModel):
+class CommunicationResponse(BaseModel):
     id: int
     name: str
     description: Optional[str]

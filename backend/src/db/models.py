@@ -1,5 +1,5 @@
 # src/database/models.py
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum, Boolean, Float, create_engine
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Enum, Boolean, Float, create_engine, Index
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 import enum
@@ -50,10 +50,10 @@ class Agent(Base):
     llm_foundations = relationship("LLMFoundation", back_populates="agents")
     llm_configs = relationship("LLMConfig", back_populates="agents")
     conversations = relationship("Conversation", secondary="agent_conversations", back_populates="agents")
-    communications = relationship("AgentCommunication", secondary="agent_communication_members", back_populates="agents")
+    communications = relationship("Communication", secondary="communication_agent_members", back_populates="agents")
     
-class AgentCommunication(Base):
-    __tablename__ = "agent_communications"
+class Communication(Base):
+    __tablename__ = "communications"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100))
@@ -64,12 +64,13 @@ class AgentCommunication(Base):
     configuration = Column(JSON)  # Store communication-specific configuration
     
     # Relationships
-    agents = relationship("Agent", secondary="agent_communication_members", back_populates="communications")
+    agents = relationship("Agent", secondary="communication_agent_members", back_populates="communications")
     conversations = relationship("Conversation", secondary="communication_conversations", back_populates="communications")
-class AgentCommunicationMember(Base):
-    __tablename__ = "agent_communication_members"
+
+class CommunicationAgentMember(Base):
+    __tablename__ = "communication_agent_members"
     
-    communication_id = Column(Integer, ForeignKey("agent_communications.id"), primary_key=True)
+    communication_id = Column(Integer, ForeignKey("communications.id"), primary_key=True)
     agent_id = Column(Integer, ForeignKey("agents.id"), primary_key=True)
     role = Column(Enum(CommunicationRole))  # e.g., "leader", "member"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -77,10 +78,9 @@ class AgentCommunicationMember(Base):
 class CommunicationConversation(Base):
     __tablename__ = "communication_conversations"
     
-    communication_id = Column(Integer, ForeignKey("agent_communications.id"), primary_key=True)
+    communication_id = Column(Integer, ForeignKey("communications.id"), primary_key=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id"), primary_key=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
 
 class LLMFoundation(Base):
     __tablename__ = "llm_foundations"
@@ -131,7 +131,8 @@ class Conversation(Base):
     # Relationships
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
     agents = relationship("Agent", secondary="agent_conversations", back_populates="conversations")
-    communications = relationship("AgentCommunication", secondary="communication_conversations", back_populates="conversations")
+    communications = relationship("Communication", secondary="communication_conversations", back_populates="conversations")
+
 class Message(Base):
     __tablename__ = "messages"
     

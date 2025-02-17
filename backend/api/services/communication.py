@@ -5,19 +5,19 @@ from typing import List, Optional
 from datetime import datetime
 
 from src.db.models import (
-    AgentCommunication, AgentCommunicationMember, 
+    Communication, CommunicationAgentMember, 
     CommunicationConversation, Agent, Conversation, AgentConversation
 )
 from api.schemas.communication import (
-    AgentCommunicationCreate, AgentCommunicationUpdate,
-    AgentCommunicationMemberCreate
+    CommunicationCreate, CommunicationUpdate,
+    CommunicationMemberCreate
 )
 
 class CommunicationService:
     @staticmethod
-    async def create_communication(db: Session, comm_create: AgentCommunicationCreate) -> AgentCommunication:
+    async def create_communication(db: Session, comm_create: CommunicationCreate) -> Communication:
         try:
-            communication = AgentCommunication(
+            communication = Communication(
                 name=comm_create.name,
                 description=comm_create.description,
                 configuration=comm_create.configuration or {}
@@ -27,7 +27,7 @@ class CommunicationService:
 
             # Add agent members
             for agent_id in comm_create.agent_ids:
-                member = AgentCommunicationMember(
+                member = CommunicationAgentMember(
                     communication_id=communication.id,
                     agent_id=agent_id,
                     role="member"
@@ -42,10 +42,10 @@ class CommunicationService:
             raise HTTPException(status_code=400, detail="Invalid agent IDs")
 
     @staticmethod
-    async def get_communication(db: Session, communication_id: int) -> Optional[AgentCommunication]:
-        communication = db.query(AgentCommunication).filter(
-            AgentCommunication.id == communication_id,
-            AgentCommunication.is_active == True
+    async def get_communication(db: Session, communication_id: int) -> Optional[Communication]:
+        communication = db.query(Communication).filter(
+            Communication.id == communication_id,
+            Communication.is_active == True
         ).first()
         if not communication:
             raise HTTPException(status_code=404, detail="Communication not found")
@@ -57,19 +57,19 @@ class CommunicationService:
         skip: int = 0,
         limit: int = 100,
         agent_id: Optional[int] = None
-    ) -> List[AgentCommunication]:
-        query = db.query(AgentCommunication)
+    ) -> List[Communication]:
+        query = db.query(Communication)
         if agent_id:
-            query = query.join(AgentCommunicationMember)\
-                        .filter(AgentCommunicationMember.agent_id == agent_id)
+            query = query.join(CommunicationAgentMember)\
+                        .filter(CommunicationAgentMember.agent_id == agent_id)
         return query.offset(skip).limit(limit).all()
 
     @staticmethod
     async def update_communication(
         db: Session,
         communication_id: int,
-        comm_update: AgentCommunicationUpdate
-    ) -> AgentCommunication:
+        comm_update: CommunicationUpdate
+    ) -> Communication:
         communication = await CommunicationService.get_communication(db, communication_id)
         update_data = comm_update.dict(exclude_unset=True)
         for field, value in update_data.items():

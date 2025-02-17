@@ -4,12 +4,12 @@ from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from src.db.models import Conversation, Message, AgentConversation, Agent, LLMConfig, LLMProvider, AgentCommunication, CommunicationConversation, MessageType
+from src.db.models import Conversation, Message,AgentType, AgentConversation, Agent, LLMConfig, LLMProvider, Communication, CommunicationConversation, MessageType
 from api.schemas.chat import (
     CommunicationConversationCreate, ConversationCreate, ConversationUpdate, ConversationResponse,
     MessageCreate, MessageResponse
 )
-from src.agents import ReActAgent, AgentOptions
+from src.agents import ReActAgent, AgentOptions, ReflectionAgent, ManagerAgent, BaseAgent
 from src.agents.llm import UnifiedLLM # Import other LLM providers as needed
 from src.tools.tool_manager import tool_manager
 
@@ -30,7 +30,7 @@ class ChatService:
         raise HTTPException(status_code=400, detail=f"Unsupported LLM provider: {provider}")
 
     @staticmethod
-    async def setup_agent(db: Session, agent_id: int) -> ReActAgent:
+    async def setup_agent(db: Session, agent_id: int) -> BaseAgent:
         """Setup agent with specified LLM config"""
         # Get agent and config
         agent = db.query(Agent).filter(Agent.id == agent_id).first()
@@ -45,23 +45,34 @@ class ChatService:
         llm = ChatService.create_llm_instance(llm_config)
 
         # Create and return agent
-        return ReActAgent(
-            llm=llm,
-            options=AgentOptions(
-                id=str(agent.id),
-                name=agent.name,
-                description=agent.description
-            ),
-            tools=tool_manager.get_all_tools()
-        )
+        if agent.agent_type == AgentType.REFLECTION:
+            return ReflectionAgent(
+                llm=llm,
+                options=AgentOptions(
+                    id=str(agent.id),
+                    name=agent.name,
+                    description=agent.description
+                ),
+                tools=tool_manager.get_all_tools()
+            )
+        else:
+            return ReActAgent(
+                llm=llm,
+                options=AgentOptions(
+                    id=str(agent.id),
+                    name=agent.name,
+                    description=agent.description
+                ),
+                tools=tool_manager.get_all_tools()
+            )
     # @staticmethod
     # async def setup_communication(db: Session, communication_id: int) -> ReActAgent:
     #     """Setup agent with specified LLM config"""
     #     # Get agent and config
-    #     communication = db.query(AgentCommunication).filter(AgentCommunication.id == communication_id).first()
+    #     communication = db.query(Communication).filter(Communication.id == communication_id).first()
     #     if not communication:
     #         raise HTTPException(status_code=404, detail="Communication not found")
-            
+    #     agents = communication.agents
     #     llm_config = db.query(LLMConfig).filter(LLMConfig.id == communication.config_id).first()
     #     if not llm_config:
     #         raise HTTPException(status_code=404, detail="LLM config not found")
@@ -106,9 +117,9 @@ class ChatService:
         conv_create: CommunicationConversationCreate
     ) -> Conversation:
         # Verify communication exists and is active
-        communication = db.query(AgentCommunication).filter(
-            AgentCommunication.id == conv_create.communication_id,
-            AgentCommunication.is_active == True
+        communication = db.query(Communication).filter(
+            Communication.id == conv_create.communication_id,
+            Communication.is_active == True
         ).first()
         if not communication:
             raise HTTPException(status_code=404, detail="Communication not found")
@@ -195,7 +206,7 @@ class ChatService:
                 response = await agent.run(
                     query=message.content,
                     verbose=True
-                )
+                )    
             # else:
             #     communication_conversation = db.query(CommunicationConversation)\
             #         .filter(CommunicationConversation.conversation_id == message.conversation_id)\

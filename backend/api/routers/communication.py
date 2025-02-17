@@ -5,26 +5,26 @@ from typing import List, Optional
 from src.db.mysql import get_db
 from api.services.communication import CommunicationService
 from api.schemas.communication import (
-    AgentCommunicationCreate, AgentCommunicationUpdate,
-    AgentCommunicationResponse
+    CommunicationCreate, CommunicationUpdate,
+    CommunicationResponse
 )
 from api.schemas.chat import ConversationResponse, MessageResponse
 from api.schemas.agent import AgentResponse
 
 communication_router = APIRouter(prefix="/communication", tags=["communication"])
 
-@communication_router.post("/create", response_model=AgentCommunicationResponse)
+@communication_router.post("/create", response_model=CommunicationResponse)
 async def create_communication(
-    comm_create: AgentCommunicationCreate,
+    comm_create: CommunicationCreate,
     db: Session = Depends(get_db)
 ):
     return await CommunicationService.create_communication(db, comm_create)
 
-@communication_router.get("/{communication_id}", response_model=AgentCommunicationResponse)
+@communication_router.get("/{communication_id}", response_model=CommunicationResponse)
 async def get_communication(communication_id: int, db: Session = Depends(get_db)):
     return await CommunicationService.get_communication(db, communication_id)
 
-@communication_router.get("/", response_model=List[AgentCommunicationResponse])
+@communication_router.get("/", response_model=List[CommunicationResponse])
 async def get_all_communications(
     skip: int = 0,
     limit: int = 100,
@@ -32,10 +32,10 @@ async def get_all_communications(
 ):
     return await CommunicationService.get_all_communications(db, skip, limit)
 
-@communication_router.put("/{communication_id}", response_model=AgentCommunicationResponse)
+@communication_router.put("/{communication_id}", response_model=CommunicationResponse)
 async def update_communication(
     communication_id: int,
-    comm_update: AgentCommunicationUpdate,
+    comm_update: CommunicationUpdate,
     db: Session = Depends(get_db)
 ):
     return await CommunicationService.update_communication(db, communication_id, comm_update)
