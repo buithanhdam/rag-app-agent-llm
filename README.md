@@ -1,65 +1,89 @@
-# Agent-LLM-RAG-App
+# Rag Application with Multi-Agent Orchestrator
 
-- This repository contains an implementation of agentic patterns such as **Planning (ReActAgent flow)** from [multi-agent](https://github.com/buithanhdam/multi-agent) and [kotaemon](https://github.com/Cinnamon/kotaemon)
+This repository is an advanced implementation of the Retrieval-Augmented Generation (RAG) framework combined with multi-agent orchestration techniques. It integrates various agentic patterns such as **Planning (ReAct flow)**, **Reflection**, and **Multi-Agent** workflows to enhance response generation and contextual understanding.
 
 ## Table of Contents
 
 1. [Introduction to RAG](#1-introduction-to-rag)
-2. [Advanced RAG Techniques](#2-advanced-rag-techniques)
-3. [Running Backend with Streamlit Separately](#3-running-backend-with-streamlit-separately)
-4. [Running the Entire Project with Docker and Docker Compose](#4-running-the-entire-project-with-docker-and-docker-compose)
-5. [Project Structure](#5-project-structure)
+2. [Multi Agent Orchestrator](#2-multi-agent-orchestrator)
+3. [Advanced RAG Techniques](#3-advanced-rag-techniques)
+4. [Running Backend with Streamlit Separately](#4-running-backend-with-streamlit-separately)
+5. [Running the Entire Project with Docker and Docker Compose](#5-running-the-entire-project-with-docker-and-docker-compose)
+6. [Project Structure](#6-project-structure)
+7. [Contributing](#7-contributing)
+8. [License](#8-license)
+9. [References](#9-references)
 
 ---
 
 ## 1. Introduction to RAG 💡
 
-Large Language Models are trained on a fixed dataset, which limits their ability to handle private or recent information. They can sometimes "hallucinate", providing incorrect yet believable answers. Fine-tuning can help but it is expensive and not ideal for retraining again and again on new data. The Retrieval-Augmented Generation (RAG) framework addresses this issue by using external documents to improve the LLM's responses through in-context learning. RAG ensures that the information provided by the LLM is not only contextually relevant but also accurate and up-to-date.
+Large Language Models are trained on a fixed dataset, which limits their ability to handle private or recent information. They can sometimes "hallucinate," providing incorrect yet believable answers. Fine-tuning can help, but it is expensive and not ideal for frequent updates. The Retrieval-Augmented Generation (RAG) framework addresses this issue by using external documents to improve the LLM's responses through in-context learning. RAG ensures that the information provided by the LLM is not only contextually relevant but also accurate and up-to-date.
 
 ![final diagram](https://github.com/user-attachments/assets/508b3a87-ac46-4bf7-b849-145c5465a6c0)
 
 There are four main components in RAG:
 
-1. **Indexing:** First, documents (in any format) are split into chunks, and embeddings for these chunks are created. These embeddings are then added to a vector store.
-2. **Retriever:** Then, the retriever finds the most relevant documents based on the user's query, using techniques like vector similarity from the vector store.
-3. **Augment:** After that, the Augment part combines the user's query with the retrieved context into a prompt, ensuring the LLM has the information needed to generate accurate responses.
-4. **Generate:** Finally, the combined query and prompt are passed to the model, which then generates the final response to the user's query.
-
-These components of RAG allow the model to access up-to-date, accurate information and generate responses based on external knowledge. However, to ensure RAG systems are functioning effectively, it’s essential to evaluate their performance.
+1. **Indexing:** Documents are split into chunks, and embeddings for these chunks are created and stored in a vector database.
+2. **Retriever:** The retriever finds the most relevant documents based on the user's query using vector similarity search.
+3. **Augment:** The retrieved documents are combined with the user query to form a prompt that provides contextual information.
+4. **Generate:** The prompt is fed into the LLM to generate an accurate and context-aware response.
 
 ---
 
-## 2. Advanced RAG Techniques ⚙️
+## 2. Multi Agent Orchestrator
 
-Here are the details of all the Advanced RAG techniques covered in this repository.
+This repository implements multi-agent workflows that enhance LLM capabilities through agent collaboration. It integrates:
+
+- **ReAct Flow** for planning and execution
+- **Reflection Mechanisms** to improve agent performance
+- **Multi-Agent Coordination** for complex problem-solving
+
+### How It Works
+
+1. User input is classified to determine the appropriate agent.
+2. The orchestrator selects the best agent based on historical context and agent capabilities.
+3. The selected agent processes the input and generates a response.
+4. The orchestrator updates conversation history and returns the response to the user.
+
+For further exploration:
+
+- [Agentic Patterns Repo](https://github.com/neural-maze/agentic_patterns/)
+- [Multi-Agent Orchestrator](https://github.com/awslabs/multi-agent-orchestrator)
+
+![Multi-Agent Workflow](https://raw.githubusercontent.com/awslabs/multi-agent-orchestrator/main/img/flow.jpg)
+
+---
+
+## 3. Advanced RAG Techniques ⚙️
+
+This repository supports several advanced RAG techniques:
 
 | Technique        | Tools                                                  | Description                                                                                                      |
 | ---------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| Naive RAG        | LlamaIndex, Qdrant, Google Gemini                      | Combines retrieved data with LLMs for simple and effective responses.                                            |
-| Hybrid RAG       | LlamaIndex, Qdrant, Google Gemini                      | Combines vector search and traditional methods like BM25 for better information retrieval.                       |
-| Hyde RAG         | LlamaIndex, Qdrant, Google Gemini                      | Combines hybrid RAG and creates hypothetical document embeddings to find relevant information.                   |
-| RAG fusion       | LlamaIndex, LangSmith, Qdrant, Google Gemini           | Generates sub-queries, ranks documents with Reciprocal Rank Fusion, and uses top results for accurate responses. |
-| Contextual RAG   | LlamaIndex, Qdrant, Google Gemini, Anthropic           | Compresses retrieved documents to keep only relevant details for concise and accurate responses.                 |
-| Unstructured RAG | LlamaIndex, Qdrant, FAISS, Google Gemini, Unstructured | Designed to handle documents that combine text, tables, and images.                                              |
+| Naive RAG        | LlamaIndex, Qdrant, Google Gemini                      | Basic retrieval-based response generation.                                                                      |
+| Hybrid RAG       | LlamaIndex, Qdrant, Google Gemini                      | Combines vector search with traditional methods like BM25.                                                      |
+| Hyde RAG         | LlamaIndex, Qdrant, Google Gemini                      | Uses hypothetical document embeddings to improve retrieval accuracy.                                            |
+| RAG Fusion       | LlamaIndex, LangSmith, Qdrant, Google Gemini           | Generates sub-queries, ranks results with Reciprocal Rank Fusion, and improves retrieval performance.          |
+| Contextual RAG   | LlamaIndex, Qdrant, Google Gemini, Anthropic           | Compresses retrieved documents to keep only the most relevant details.                                         |
+| Unstructured RAG | LlamaIndex, Qdrant, FAISS, Google Gemini, Unstructured | Handles text, tables, and images for more diverse content retrieval.                                            |
 
 ---
 
-## 3. Running Backend only (with Streamlit Separately)
+## 4. Running Backend Only (With Streamlit Separately)
 
-If you want to run the backend only (with Streamlit separately), please follow the instructions in the `README.md` file located in the `backend` folder
-
-For detailed instructions, see: [backend/README.md](backend/README.md)
+To run the backend separately with Streamlit, follow the instructions in the [backend README](backend/README.md).
 
 ---
 
-## 4. Running the Entire Project with Docker and Docker Compose
+## 5. Running the Entire Project with Docker and Docker Compose
 
-### 4.1 Prerequisites
+### 5.1 Prerequisites
 
-- Docker: [Install Docker](https://docs.docker.com/get-docker/)
-- Docker Compose: [Install Docker Compose](https://docs.docker.com/compose/install/)
+- [Install Docker](https://docs.docker.com/get-docker/)
+- [Install Docker Compose](https://docs.docker.com/compose/install/)
 
-### 4.2 Steps
+### 5.2 Steps
 
 #### 1. Clone the Project
 
@@ -69,8 +93,6 @@ cd rag-app-agent-llm
 ```
 
 #### 2. Configure Environment Variables
-
-- Create `.env` files in the `backend` and `frontend` folders (if needed) and fill in the required environment variables. For example:
 
 ```bash
 cp ./frontend/.env.example ./frontend/.env
@@ -102,36 +124,30 @@ NEXT_PUBLIC_BACKEND_API_URL=http://localhost:8000
 docker-compose up --build
 ```
 
-This command will build and run all the services defined in `docker-compose.yml`.
-
-#### 4. Set Up MySQL Database 
+#### 4. Set Up MySQL Database
 
 ```bash
-docker exec -it your-container-name mysql -u root -p 
+docker exec -it your-container-name mysql -u root -p
 ```
+- Enter `root password` (configured in `.env` or `docker-compose.yml`).
 
-- Enter `root password` (configured in `backend/.env` or `docker-compose.yml`).
-- Run the following SQL queries:
+Run SQL queries:
 
-  ```bash
-  CREATE USER 'user'@'%' IDENTIFIED BY '1';
-  GRANT ALL PRIVILEGES ON ragagent.* TO 'user'@'%';
-  FLUSH PRIVILEGES;
-  ```
-  ```bash
-  CREATE DATABASE ragagent;
-  ```
+```sql
+CREATE USER 'user'@'%' IDENTIFIED BY '1';
+GRANT ALL PRIVILEGES ON ragagent.* TO 'user'@'%';
+FLUSH PRIVILEGES;
+CREATE DATABASE ragagent;
+```
 
 #### 5. Access the Application
 
-- **Frontend**: Open your browser and go to `http://localhost:3000`.
-- **Backend**: The backend API will run on `http://localhost:8000`.
-- **qdrant**: Exposes ports `6333`, `6334`.
-- **mysql**: Exposes port `3306`.
+- **Frontend**: `http://localhost:3000`
+- **Backend**: `http://localhost:8000`
+- **Qdrant**: Exposes ports `6333`, `6334`
+- **MySQL**: Exposes port `3306`
 
 #### 6. Stop the Project
-
-To stop all services, run:
 
 ```bash
 docker-compose down
@@ -139,17 +155,38 @@ docker-compose down
 
 ---
 
-## 5. Project Structure
+## 6. Project Structure
 
-- **backend/**: Contains the backend source code.
-  - `README.md`: Instructions for running the backend with Streamlit separately.
-  - `Dockerfile.backend`: Dockerfile for building the backend.
-  - `requirements.txt`: Backend dependencies.
+- **backend/**: Backend source code
+  - `Dockerfile.backend`: Backend container setup
+  - `requirements.txt`: Backend dependencies
 
-- **frontend/**: Contains the frontend source code.
-  - `Dockerfile.frontend`: Dockerfile for building the frontend.
-  - `next.config.js`: Next.js configuration.
+- **frontend/**: Frontend source code
+  - `Dockerfile.frontend`: Frontend container setup
+  - `next.config.js`: Next.js configuration
 
-- **docker-compose.yml**: Docker Compose configuration file for running the entire project.
+- **docker-compose.yml**: Docker Compose setup
+- **Jenkinsfile**: CI/CD configuration
 
-- **Jenkinsfile**: Jenkins configuration file for CI/CD.
+---
+
+## 7. Contributing
+
+Contributions are welcome! Please submit an issue or a pull request to improve this project.
+
+---
+
+## 8. License
+
+This project is licensed under the MIT License.
+
+---
+
+## 9. References
+
+- [Agentic Patterns Repo](https://github.com/neural-maze/agentic_patterns/)
+- [Multi-Agent Orchestrator](https://github.com/awslabs/multi-agent-orchestrator)
+- [kotaemon](https://github.com/Cinnamon/kotaemon)
+- [multi-agent](https://github.com/buithanhdam/multi-agent)
+- [RAG Cookbook](https://github.com/athina-ai/rag-cookbook)
+
