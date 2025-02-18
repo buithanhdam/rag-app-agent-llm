@@ -75,7 +75,7 @@ class BaseAgent(ABC):
         return ChatMessage(role="system", content=prompt)
     
     @abstractmethod
-    async def run(self,query: str,verbose: bool = False, *args, **kwargs) -> Any:
+    async def run(self,query: str,verbose: bool = False,chat_history: List[ChatMessage] = [], *args, **kwargs) -> Any:
         """Main execution method that must be implemented by all agents"""
         pass
     def is_streaming_enabled(self) -> bool:

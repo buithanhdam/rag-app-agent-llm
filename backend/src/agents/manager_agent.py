@@ -57,9 +57,8 @@ class ManagerAgent(BaseAgent):
             return "No recent chat history"
         
         # Take last 3 messages for context
-        recent_messages = chat_history[-3:]
         formatted = []
-        for msg in recent_messages:
+        for msg in chat_history:
             formatted.append(f"{msg.role}: {msg.content}")
         return "\n".join(formatted)
 
@@ -123,15 +122,19 @@ class ManagerAgent(BaseAgent):
             selected_agent, confidence = await self.classify_request(query, chat_history)
             
             if not selected_agent:
-                return "I'm sorry, I couldn't find an appropriate agent to handle your request."
+                response = await self.llm.achat("Answer this question: "+query,chat_history=chat_history)
+                print("I'm sorry, I couldn't find an appropriate agent to handle your request.")
+                return response
             
             # If confidence is too low, maybe ask for clarification
             if confidence < 0.6:
-                return (
+                print(
                     f"I'm not entirely sure I understand your request. "
                     f"I think {selected_agent.name} might be able to help, "
                     f"but could you please provide more details about what you need?"
                 )
+                response = await self.llm.achat("Answer this question: "+query,chat_history=chat_history)
+                return response
             
             # Log the classification
             if verbose:

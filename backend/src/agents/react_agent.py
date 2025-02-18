@@ -41,12 +41,14 @@ class ReActAgent(BaseAgent):
         
         return "\n".join(tool_descriptions)
 
-    async def _get_initial_plan(self, task: str) -> ExecutionPlan:
+    async def _get_initial_plan(self, task: str, chat_history: List[ChatMessage] = []) -> ExecutionPlan:
         """Generate initial execution plan with focus on available tools"""
         prompt = f"""
         You are a planning assistant with access to specific tools. Create a focused plan using ONLY the tools listed below.
         
         Task to accomplish: {task}
+        
+        Chat history: {str(chat_history)}
         
         Available tools and specifications:
         {self._format_tool_signatures()}
@@ -137,12 +139,13 @@ class ReActAgent(BaseAgent):
                 raise
             return None
 
-    async def _generate_summary(self, task: str, results: List[Any]) -> str:
+    async def _generate_summary(self, task: str, results: List[Any], chat_history: List[ChatMessage] = []) -> str:
         """Generate a coherent summary of the results"""
         prompt = f"""
         Create a clear and concise summary based on the following:
         
         Original task: {task}
+        Chat history: {str(chat_history)}
         Results from execution: {results}
         
         Rules:
@@ -162,6 +165,7 @@ class ReActAgent(BaseAgent):
         self,
         query: str,
         max_steps: int = 3,
+        chat_history: List[ChatMessage] = [],
         verbose: bool = False
     ) -> str:
         """Execute the plan and generate response"""
@@ -170,7 +174,7 @@ class ReActAgent(BaseAgent):
         
         try:
             # Generate plan
-            plan = await self._get_initial_plan(query)
+            plan = await self._get_initial_plan(query,chat_history)
             
             if verbose:
                 print(Fore.GREEN + "\nExecuting plan:")
@@ -200,7 +204,7 @@ class ReActAgent(BaseAgent):
                         raise
                         
             # Generate final summary
-            return await self._generate_summary(query, results)
+            return await self._generate_summary(query, results, chat_history)
             
         except Exception as e:
             logger.error(f"Error in run: {str(e)}")

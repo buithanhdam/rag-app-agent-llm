@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { MessageSquare, Plus, Send, Users, User } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
+import Markdown from 'react-markdown'
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
 type MessageType = 'agent' | 'communication';
 
@@ -236,7 +236,7 @@ export default function ChatComponent() {
           ? 'bg-gray-100 animate-pulse'
           : 'bg-gray-100'
       }`}>
-        {message.content}
+        <Markdown>{message.content}</Markdown>
       </div>
     </div>
   );

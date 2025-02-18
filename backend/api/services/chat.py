@@ -3,8 +3,8 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-
-from src.db.models import Conversation, Message,AgentType, AgentConversation, Agent, LLMConfig, LLMProvider, Communication, CommunicationConversation, MessageType
+from llama_index.core.llms import ChatMessage
+from src.db.models import RoleType,Conversation, Message,AgentType, AgentConversation, Agent, LLMConfig, LLMProvider, Communication, CommunicationConversation, MessageType
 from api.schemas.chat import (
     CommunicationConversationCreate, ConversationCreate, ConversationUpdate, ConversationResponse,
     MessageCreate, MessageResponse
@@ -49,7 +49,7 @@ class ChatService:
             return ReflectionAgent(
                 llm=llm,
                 options=AgentOptions(
-                    id=str(agent.id),
+                    id=str(agent.name),
                     name=agent.name,
                     description=agent.description
                 ),
@@ -59,37 +59,33 @@ class ChatService:
             return ReActAgent(
                 llm=llm,
                 options=AgentOptions(
-                    id=str(agent.id),
+                    id=str(agent.name),
                     name=agent.name,
                     description=agent.description
                 ),
                 tools=tool_manager.get_all_tools()
             )
-    # @staticmethod
-    # async def setup_communication(db: Session, communication_id: int) -> ReActAgent:
-    #     """Setup agent with specified LLM config"""
-    #     # Get agent and config
-    #     communication = db.query(Communication).filter(Communication.id == communication_id).first()
-    #     if not communication:
-    #         raise HTTPException(status_code=404, detail="Communication not found")
-    #     agents = communication.agents
-    #     llm_config = db.query(LLMConfig).filter(LLMConfig.id == communication.config_id).first()
-    #     if not llm_config:
-    #         raise HTTPException(status_code=404, detail="LLM config not found")
+    @staticmethod
+    async def setup_communication(db: Session, communication_id: int) -> BaseAgent:
+        """Setup agent communication with specified multiple agents"""
+        # Get agent and config
+        communication = db.query(Communication).filter(Communication.id == communication_id).first()
+        if not communication:
+            raise HTTPException(status_code=404, detail="Communication not found")
+        agents : List[Agent] = communication.agents
+        manager_agent = ManagerAgent(
+            llm=UnifiedLLM(system_prompt="You are a intelligent agent"),
+            options=AgentOptions(
+                id="manager",
+                name="Manager",
+                description="Routes requests to specialized agents"
+            )
+        )
+        for agent in agents:
+            manager_agent.register_agent(await ChatService.setup_agent(db, agent.id))
 
-    #     # Create LLM instance
-    #     llm = ChatService.create_llm_instance(llm_config)
-
-    #     # Create and return agent
-    #     return ReActAgent(
-    #         llm=llm,
-    #         options=AgentOptions(
-    #             id=str(communication.id),
-    #             name=communication.name,
-    #             description=communication.description
-    #         ),
-    #         tools=tool_manager.get_all_tools()
-    #     )
+        # Create and return agent
+        return manager_agent
     @staticmethod
     async def create_conversation(db: Session, conv_create: ConversationCreate) -> Conversation:
         conversation = Conversation(
@@ -202,16 +198,21 @@ class ChatService:
                 agent_conversation = db.query(AgentConversation)\
                     .filter(AgentConversation.conversation_id == message.conversation_id)\
                     .first()
-                agent = await ChatService.setup_agent(db, agent_conversation.agent_id)
-                response = await agent.run(
+                agent = await ChatService.setup_agent(db, agent_conversation.agent_id)   
+            else:
+                communication_conversation = db.query(CommunicationConversation)\
+                    .filter(CommunicationConversation.conversation_id == message.conversation_id)\
+                    .first()
+                agent = await ChatService.setup_communication(db, communication_conversation.communication_id)
+            
+            history=db.query(Message).filter(
+                Message.conversation_id == message.conversation_id
+                ).order_by(Message.created_at.desc()).limit(5)
+            response = await agent.run(
                     query=message.content,
-                    verbose=True
-                )    
-            # else:
-            #     communication_conversation = db.query(CommunicationConversation)\
-            #         .filter(CommunicationConversation.conversation_id == message.conversation_id)\
-            #         .first()
-                
+                    verbose=True,
+                    chat_history=[ChatMessage(role= "user" if m.role == RoleType.USER else "assistant", content=m.content) for m in history]
+            )     
             print(response)
             # Add the agent's response as a new message
             agent_message = Message(

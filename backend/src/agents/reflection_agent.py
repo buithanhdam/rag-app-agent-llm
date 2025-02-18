@@ -148,25 +148,25 @@ class ReflectionAgent(BaseAgent):
         reflection_system_prompt: str = "",
         n_steps: int = 3,
         max_tool_steps: int = 2,
+        chat_history: List[ChatMessage] = [],
         verbose: bool = False,
     ) -> str:
         # Initialize system prompts
         full_gen_prompt = generation_system_prompt + BASE_GENERATION_SYSTEM_PROMPT
         full_ref_prompt = reflection_system_prompt + BASE_REFLECTION_SYSTEM_PROMPT
-
         # Initialize chat histories
         generation_history = ChatHistory(
-            initial_messages=[
-                self._create_system_message(full_gen_prompt),
-                ChatMessage(role="user", content=query)
-            ],
-            max_length=3
+            initial_messages=chat_history,
+            max_length=10
         )
+        generation_history.add("system", full_gen_prompt)
+        generation_history.add("user", query)
 
         reflection_history = ChatHistory(
-            initial_messages=[self._create_system_message(full_ref_prompt)],
-            max_length=3
+            initial_messages=chat_history,
+            max_length=10
         )
+        reflection_history.add("system", full_ref_prompt)
 
         tool_steps_count = 0
 
