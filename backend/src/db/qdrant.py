@@ -105,7 +105,7 @@ class QdrantVectorDatabase(BaseVectorDatabase):
     def check_collection_exists(self, collection_name: str):
         return self.client.collection_exists(collection_name)
 
-    def create_collection(self, collection_name: str, vector_size: int):
+    def create_collection(self, collection_name: str, vector_size: int = 768):
         if not self.client.collection_exists(collection_name):
             logger.info(f"Creating collection {collection_name}")
             self.client.create_collection(

@@ -49,7 +49,6 @@ class BaseRAGManager(ABC):
         self.qdrant_client = QdrantVectorDatabase(url=qdrant_url)
         
         logger.info(f"Initialized {self.__class__.__name__}")
-
     def split_document(
         self,
         document: Document,

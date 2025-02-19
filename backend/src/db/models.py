@@ -31,6 +31,28 @@ class MessageType(enum.Enum):
     COMMUNICATION = "communication"
     AGENT = "agent"
 
+class DocumentStatus(enum.Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    PROCESSED = "processed"
+    FAILED = "failed"
+
+class ToolType(enum.Enum):
+    SEARCH = "search"
+    CALCULATOR = "calculator"
+    CODE_INTERPRETER = "code_interpreter"
+    WEB_BROWSER = "web_browser"
+    FILE_OPERATION = "file_operation"
+    API_CALL = "api_call"
+    CUSTOM = "custom"
+
+class RAGType(enum.Enum):
+    NORMAL = "normal_rag"
+    HYBRID = "hybrid_rag"
+    CONTEXTUAL = "contextual_rag"
+    FUSION = "fusion_rag"
+    HYDE = "hyde_rag"
+    NAIVE = "naive_rag"
 class Agent(Base):
     __tablename__ = "agents"
     
@@ -44,14 +66,15 @@ class Agent(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     is_active = Column(Boolean, default=True)
     configuration = Column(JSON)  # Agent-specific configuration
-    tools = Column(JSON)  # Available tools for this agent
     
     # Relationships
     llm_foundations = relationship("LLMFoundation", back_populates="agents")
     llm_configs = relationship("LLMConfig", back_populates="agents")
     conversations = relationship("Conversation", secondary="agent_conversations", back_populates="agents")
     communications = relationship("Communication", secondary="communication_agent_members", back_populates="agents")
-    
+    tools = relationship("Tool", secondary="agent_tools", back_populates="agents")
+    knowledge_bases = relationship("KnowledgeBase", secondary="agent_knowledge_bases", back_populates="agents")
+
 class Communication(Base):
     __tablename__ = "communications"
     
@@ -150,6 +173,104 @@ class AgentConversation(Base):
     
     agent_id = Column(Integer, ForeignKey("agents.id"), primary_key=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id"), primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class RAGConfig(Base):
+    __tablename__ = "rag_configs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rag_type = Column(Enum(RAGType))
+    embedding_model = Column(String(100))
+    similarity_type = Column(String(50))
+    chunk_size = Column(Integer)
+    chunk_overlap = Column(Integer)
+    configuration = Column(JSON)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    knowledge_bases = relationship("KnowledgeBase", back_populates="rag_config")
+
+class KnowledgeBase(Base):
+    __tablename__ = "knowledge_bases"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rag_config_id = Column(Integer, ForeignKey("rag_configs.id"))
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    is_active = Column(Boolean, default=True)
+    extra_info = Column(JSON)
+    
+    # Relationships
+    documents = relationship("Document", back_populates="knowledge_base")
+    rag_config = relationship("RAGConfig", back_populates="knowledge_bases")
+    agents = relationship("Agent", secondary="agent_knowledge_bases", back_populates="knowledge_bases")
+
+class Document(Base):
+    __tablename__ = "documents"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id"))
+    title = Column(String(255), nullable=False)
+    source = Column(String(255))
+    content_type = Column(String(50))
+    original_content = Column(Text, nullable=True)
+    processed_content = Column(Text, nullable=True)
+    status = Column(Enum(DocumentStatus), default=DocumentStatus.PENDING)
+    extra_info = Column(JSON)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    knowledge_base = relationship("KnowledgeBase", back_populates="documents")
+    chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    document_id = Column(Integer, ForeignKey("documents.id"))
+    content = Column(Text, nullable=False)
+    chunk_index = Column(Integer)
+    embedding = Column(JSON, nullable=True)
+    extra_info = Column(JSON)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    document = relationship("Document", back_populates="chunks")
+
+class Tool(Base):
+    __tablename__ = "tools"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    tool_type = Column(Enum(ToolType))
+    configuration = Column(JSON)
+    parameters = Column(JSON)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    agents = relationship("Agent", secondary="agent_tools", back_populates="tools")
+
+# Association tables
+class AgentKnowledgeBase(Base):
+    __tablename__ = "agent_knowledge_bases"
+    
+    agent_id = Column(Integer, ForeignKey("agents.id"), primary_key=True)
+    knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id"), primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class AgentTool(Base):
+    __tablename__ = "agent_tools"
+    
+    agent_id = Column(Integer, ForeignKey("agents.id"), primary_key=True)
+    tool_id = Column(Integer, ForeignKey("tools.id"), primary_key=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{settings.MYSQL_USER}:{settings.MYSQL_PASSWORD}@{settings.MYSQL_HOST}:{settings.MYSQL_PORT}/{settings.MYSQL_DB}"
