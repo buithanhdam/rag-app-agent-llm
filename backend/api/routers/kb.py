@@ -1,5 +1,6 @@
+import json
 from typing import List
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, Form, UploadFile, File, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from src.config import Settings
@@ -72,7 +73,7 @@ async def get_documents(
 @kb_router.post("/{kb_id}/documents", response_model=DocumentResponse)
 async def upload_document(
     kb_id: int,
-    doc_data: DocumentCreate,
+    doc_data: str = Form(...),  # Change to string
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     kb_service: KnowledgeBaseService = Depends(get_kb_service)
@@ -83,11 +84,15 @@ async def upload_document(
         raise HTTPException(400, "Unsupported file type")
         
     try:
+        # Parse the JSON string
+        doc_data_dict = json.loads(doc_data)
+        doc_data_obj = DocumentCreate(**doc_data_dict)
+        
         content = await file.read()
         return await kb_service.create_document(
             session=db,
             kb_id=kb_id,
-            doc_data=doc_data,
+            doc_data=doc_data_obj,
             file_content=content,
             filename=file.filename
         )

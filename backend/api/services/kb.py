@@ -1,4 +1,8 @@
+import os
+from pathlib import Path
+import tempfile
 from typing import List, Optional, Dict, Any
+import uuid
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import datetime
@@ -18,6 +22,7 @@ from src.db.models import (
     DocumentChunk
 )
 from src.db.qdrant import QdrantVectorDatabase
+from src.db.aws import S3Client, get_aws_s3_client
 from src.readers import parse_multiple_files, FileExtractor
 from src.rag.rag_manager import RAGManager
 from src.config import Settings
@@ -30,6 +35,7 @@ class KnowledgeBaseService:
         self.settings = settings
         self.file_extractor = FileExtractor()
         self.qdrant_client = QdrantVectorDatabase(url=settings.QDRANT_URL)
+        self.s3_client = get_aws_s3_client()
         # self.rag_manager = RAGManager.create_rag(
         #     rag_type=settings.RAG_CONFIG.rag_type,
         #     qdrant_url=settings.QDRANT_URL,
@@ -70,11 +76,12 @@ class KnowledgeBaseService:
             session.add(kb)
             session.commit()
             session.refresh(kb)
+            self.s3_client.create_bucket(f"kb-{kb.id}-{''.join(kb.name.split(' '))}")
             
-            self.qdrant_client.create_collection(f"kb_{kb.id}", vector_size=768)
-            
+            self.qdrant_client.create_collection(f"kb-{kb.id}", vector_size=768)
             return kb
         except HTTPException as e:
+            session.rollback()
             raise e
 
     async def update_knowledge_base(
@@ -136,47 +143,69 @@ class KnowledgeBaseService:
         """Create a new document and process it"""
         # Verify knowledge base exists
         kb = await self.get_knowledge_base(session, kb_id)
-        
-        # Create document record
-        document = Document(
-            knowledge_base_id=kb_id,
-            title=doc_data.title,
-            source=doc_data.source or filename,
-            content_type=doc_data.content_type,
-            status=DocumentStatus.PROCESSING,
-            extra_info=doc_data.extra_info
-        )
-        session.add(document)
-        session.flush()  # Get document.id
-        
+        if not kb:
+            raise HTTPException(status_code=404, detail="Knowledge base not found")
         try:
-            # Process the document content
-            processed_data = await self.process_document(
-                file_content=file_content,
-                filename=filename,
-                collection_name=f"kb_{kb_id}",
-                metadata={"document_id": document.id, **doc_data.extra_info} if doc_data.extra_info else {"document_id": document.id}
+            temp_dir = Path(tempfile.gettempdir()) / "uploads"
+            temp_dir.mkdir(exist_ok=True)
+            original_filename = Path(filename)
+            extension = original_filename.suffix
+            
+            # Create a unique temporary file with original extension
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=extension,
+                dir=temp_dir
             )
             
-            # Create document chunks
-            for chunk_idx, chunk_data in enumerate(processed_data["chunks"]):
-                chunk = DocumentChunk(
-                    document_id=document.id,
-                    content=chunk_data["text"],
-                    chunk_index=chunk_idx,
-                    embedding=chunk_data["embedding"],
-                    extra_info=chunk_data.get("metadata", {})
-                )
-                session.add(chunk)
+            # Write content to temporary file
+            with open(temp_file.name, 'wb') as f:
+                f.write(file_content)
+            file_path = temp_file.name
+            print(file_path)
+            date_path = datetime.now().strftime("%d-%m-%Y")
+            object_name = os.path.join(date_path, f"{uuid.uuid4()}_{filename}")
+
+            file_path_in_s3=self.s3_client.upload_file(
+                bucket_name=f"kb-{kb.id}-{''.join(kb.name.split(' '))}",
+                object_name=object_name,
+                file_path=str(file_path),
+            )
+            # Create document record
+            print('here')
+            document = Document(
+                knowledge_base_id=kb_id,
+                name=filename,
+                source=file_path_in_s3,
+                extension=extension,
+                status=DocumentStatus.UPLOADED,
+                extra_info=doc_data.extra_info
+            )
+            session.add(document)
+            session.flush()  # Get document.id
             
-            # Update document status
-            document.status = DocumentStatus.PROCESSED
-            document.processed_content = processed_data.get("processed_content")
+            # # Process the document content
+            # processed_data = await self.process_document(
+            #     file_content=file_content,
+            #     filename=filename,
+            #     collection_name=f"kb_{kb_id}",
+            #     metadata={"document_id": document.id, **doc_data.extra_info} if doc_data.extra_info else {"document_id": document.id}
+            # )
             
+            # # Create document chunks
+            # for chunk_idx, chunk_data in enumerate(processed_data["chunks"]):
+            #     chunk = DocumentChunk(
+            #         document_id=document.id,
+            #         content=chunk_data["text"],
+            #         chunk_index=chunk_idx,
+            #         embedding=chunk_data["embedding"],
+            #         extra_info=chunk_data.get("metadata", {})
+            #     )
+            #     session.add(chunk)    
         except Exception as e:
             document.status = DocumentStatus.FAILED
-            logger.error(f"Error processing document: {str(e)}")
-            raise
+            logger.error(f"Error uploading document: {str(e)}")
+            raise e
         
         finally:
             session.commit()
@@ -234,7 +263,7 @@ class KnowledgeBaseService:
         try:
             response = self.rag_manager.search(
                 query=query,
-                collection_name=f"kb_{kb_id}",
+                collection_name=f"kb-{kb_id}",
                 limit=limit
             )
             return {
@@ -264,7 +293,7 @@ class KnowledgeBaseService:
         try:
             # Delete from vector store
             self.rag_manager.delete_document(
-                collection_name=f"kb_{kb_id}",
+                collection_name=f"kb-{kb_id}",
                 document_id=str(document_id)
             )
             

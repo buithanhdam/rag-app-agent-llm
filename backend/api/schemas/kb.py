@@ -29,17 +29,17 @@ class KnowledgeBaseResponse(BaseModel):
     
 class DocumentCreate(BaseModel):
     knowledge_base_id: int
-    title: str
+    name: str
     source: Optional[str] = None
-    content_type: str
+    extension: str
     extra_info: Optional[Dict[str, Any]] = None
 
 class DocumentResponse(BaseModel):
     id: int
     knowledge_base_id: int
-    title: str
+    name: str
     source: Optional[str]
-    content_type: str
+    extension: str
     status: DocumentStatus
     extra_info: Optional[Dict[str, Any]]
     created_at: datetime

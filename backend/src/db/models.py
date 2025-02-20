@@ -32,6 +32,7 @@ class MessageType(enum.Enum):
     AGENT = "agent"
 
 class DocumentStatus(enum.Enum):
+    UPLOADED = "uploaded"
     PENDING = "pending"
     PROCESSING = "processing"
     PROCESSED = "processed"
@@ -214,9 +215,9 @@ class Document(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     knowledge_base_id = Column(Integer, ForeignKey("knowledge_bases.id"))
-    title = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)
     source = Column(String(255))
-    content_type = Column(String(50))
+    extension = Column(String(50))
     original_content = Column(Text, nullable=True)
     processed_content = Column(Text, nullable=True)
     status = Column(Enum(DocumentStatus), default=DocumentStatus.PENDING)

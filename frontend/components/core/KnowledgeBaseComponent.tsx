@@ -19,7 +19,8 @@ interface KnowledgeBase {
 
 interface Document {
   id: string;
-  title: string;
+  name: string;
+  extension: string;
   status: string;
   created_at: string;
   content_type: string;
@@ -102,8 +103,8 @@ const KnowledgeBaseComponent: React.FC = () => {
     formData.append('file', file);
     formData.append('doc_data', JSON.stringify({
       knowledge_base_id: selectedKB.id,
-      title: file.name,
-      content_type: file.type
+      name: file.name,
+      extension: file.type
     }));
 
     try {
@@ -241,9 +242,10 @@ const KnowledgeBaseComponent: React.FC = () => {
                     {documents.map((doc) => (
                       <Card key={doc.id}>
                         <CardHeader>
-                          <CardTitle className="text-lg">{doc.title}</CardTitle>
+                          <CardTitle className="text-lg">{doc.name}</CardTitle>
                         </CardHeader>
                         <CardContent>
+                          <p className="text-sm text-gray-500">Type: {doc.extension}</p>
                           <p className="text-sm text-gray-500">Status: {doc.status}</p>
                           <p className="text-sm">Created: {new Date(doc.created_at).toLocaleDateString()}</p>
                         </CardContent>

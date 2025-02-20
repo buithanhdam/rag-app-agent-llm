@@ -108,12 +108,19 @@
    ANTHROPIC_API_KEY=<your_anthropic_api_key>
    BACKEND_API_URL=http://localhost:8000
    QDRANT_URL=http://localhost:6333
+
    MYSQL_USER=your_mysql_user
    MYSQL_PASSWORD=your_mysql_password
    MYSQL_HOST=your_mysql_host
    MYSQL_PORT=your_mysql_port
    MYSQL_DB=your_mysql_db
    MYSQL_ROOT_PASSWORD=root_password
+
+   AWS_ACCESS_KEY_ID=
+   AWS_SECRET_ACCESS_KEY=
+   AWS_REGION_NAME=
+   AWS_STORAGE_TYPE=
+   AWS_ENDPOINT_URL=
    ```
 
 ---

@@ -49,12 +49,21 @@ class QdrantPayload(BaseModel):
     document_id: str
     text: str
     vector_id: str
+    
+class AWSConfig(BaseModel):
+    """Configuration for AWS S3"""
+    access_key_id: str
+    secret_access_key: str
+    region_name: str
+    storage_type: str
+    endpoint_url: str
 
 class Settings(BaseSettings):
     """Main application settings"""
     QDRANT_URL: str = os.getenv('QDRANT_URL', "http://qdrant:6333")
     GOOGLE_API_KEY: str = os.getenv('GOOGLE_API_KEY', '')
     BACKEND_API_URL: str = os.getenv('BACKEND_API_URL', 'http://localhost:8000')
+    
     MYSQL_USER : str=os.getenv('MYSQL_USER', 'user')
     MYSQL_PASSWORD : str=os.getenv('MYSQL_PASSWORD', '1')
     MYSQL_ROOT_PASSWORD : str=os.getenv('MYSQL_ROOT_PASSWORD', '1')
@@ -67,6 +76,11 @@ class Settings(BaseSettings):
     READER_CONFIG: ReaderConfig = ReaderConfig()
     RAG_CONFIG: RAGConfig = RAGConfig()
     
+    AWS_ACCESS_KEY_ID:str=os.getenv('AWS_ACCESS_KEY_ID', ''),
+    AWS_SECRET_ACCESS_KEY:str=os.getenv('AWS_SECRET_ACCESS_KEY', ''),
+    AWS_REGION_NAME:str=os.getenv('AWS_REGION_NAME', ''),
+    AWS_STORAGE_TYPE:str=os.getenv('AWS_STORAGE_TYPE', ''),
+    AWS_ENDPOINT_URL:str="https://s3.ap-southeast-2.amazonaws.com"
     # LLM configurations
     OPENAI_CONFIG: LLMConfig = LLMConfig(
         api_key=os.getenv('OPENAI_API_KEY', ''),
