@@ -157,35 +157,32 @@ class S3Client:
             logger.error(f"Upload failed: {str(e)}")
             raise e
 
-    def download_file(self, bucket_name: str, object_name: str, file_path: str):
+    def download_file(self, file_url: str, file_path_to_save: str):
         """
         Download file from S3
 
         Args:
-            bucket_name (str): Bucket name
-            object_name (str): Object name to download
-            file_path (str): File path to save
+            file_url (str): Object name to download
+            file_path_to_save (str): File path to save
         """
-        if not self.check_bucket_exists(bucket_name):
-            logger.warning(f"Bucket {bucket_name} does not exist. Do nothing...")
-            return
-
         try:
-            parsed = urlparse(object_name)
+            parsed = urlparse(file_url)
             
             # Extract bucket name from hostname
             hostname_parts = parsed.netloc.split('.')
             bucket_name = hostname_parts[0]
-            
+            if not self.check_bucket_exists(bucket_name):
+                logger.warning(f"Bucket {bucket_name} does not exist. Do nothing...")
+                return
             # Extract object key from path
             object_name = parsed.path.lstrip('/')
 
             self.client.download_file(
                 Bucket=bucket_name,
                 Key=object_name,
-                Filename=file_path
+                Filename=file_path_to_save
             )
-            logger.info(f"Downloaded: {bucket_name}/{object_name} --> {file_path}")
+            logger.info(f"Downloaded: {bucket_name}/{object_name} --> {file_path_to_save}")
         except ClientError as e:
             logger.error(f"Download failed: {str(e)}")
             raise

@@ -6,9 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, FileText, Search, Plus, Database } from 'lucide-react';
+import { Upload, FileText, Search, Plus, Database, Trash2, Play } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
+import { Alert, AlertDescription } from '@/components/ui/alert';
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
 interface KnowledgeBase {
   id: string;
@@ -42,6 +42,9 @@ const KnowledgeBaseComponent: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [processingDocs, setProcessingDocs] = useState<Record<string, boolean>>({});
+  const [processingProgress, setProcessingProgress] = useState<Record<string, number>>({});
+  const [deleteInProgress, setDeleteInProgress] = useState<Record<string, boolean>>({});
 
   // Form states for creating new KB
   const [newKBData, setNewKBData] = useState<NewKBData>({
@@ -127,7 +130,185 @@ const KnowledgeBaseComponent: React.FC = () => {
       setUploadProgress(0);
     }
   };
+  const startDocumentProcessing = async (docId: string) => {
+    if (!selectedKB) return;
 
+    setProcessingDocs(prev => ({ ...prev, [docId]: true }));
+    setProcessingProgress(prev => ({ ...prev, [docId]: 0 }));
+
+    try {
+      const response = await fetch(
+        `${BACKEND_API_URL}/kb/${selectedKB.id}/documents/${docId}/process`,
+        { method: 'POST' }
+      );
+
+      if (!response.ok) throw new Error('Processing failed');
+
+      // Update progress to show completion
+      setProcessingProgress(prev => ({ ...prev, [docId]: 100 }));
+      
+      // Refresh documents to get updated status
+      await fetchDocuments(selectedKB.id);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Processing failed');
+    } finally {
+      setProcessingDocs(prev => ({ ...prev, [docId]: false }));
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!selectedKB) return;
+
+    setDeleteInProgress(prev => ({ ...prev, [docId]: true }));
+
+    try {
+      const response = await fetch(
+        `${BACKEND_API_URL}/kb/${selectedKB.id}/documents/${docId}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) throw new Error('Delete failed');
+
+      // Remove document from the list
+      setDocuments(prev => prev.filter(doc => doc.id !== docId));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Delete failed');
+    } finally {
+      setDeleteInProgress(prev => ({ ...prev, [docId]: false }));
+    }
+  };
+  const renderDocumentCard = (doc: Document) => {
+    const isProcessing = processingDocs[doc.id];
+    const progress = processingProgress[doc.id] || 0;
+    const isDeleting = deleteInProgress[doc.id];
+  
+    const getStatusColor = (status: string) => {
+      switch (status.toUpperCase()) {
+        case 'UPLOADED':
+          return 'text-gray-600';
+        case 'PENDING':
+          return 'text-yellow-600';
+        case 'PROCESSING':
+          return 'text-blue-600';
+        case 'PROCESSED':
+          return 'text-green-600';
+        case 'FAILED':
+          return 'text-red-600';
+        default:
+          return 'text-gray-600';
+      }
+    };
+  
+    const getStatusBackground = (status: string) => {
+      switch (status.toUpperCase()) {
+        case 'UPLOADED':
+          return 'bg-gray-50';
+        case 'PENDING':
+          return 'bg-yellow-50';
+        case 'PROCESSING':
+          return 'bg-blue-50';
+        case 'PROCESSED':
+          return 'bg-green-50';
+        case 'FAILED':
+          return 'bg-red-50';
+        default:
+          return 'bg-gray-50';
+      }
+    };
+  
+    return (
+      <Card key={doc.id} className="relative">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-gray-500" />
+              <CardTitle className="text-lg">{doc.name}</CardTitle>
+            </div>
+            <div className="flex gap-2">
+              {doc.status !== 'processed' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => startDocumentProcessing(doc.id)}
+                  disabled={isProcessing || doc.status === 'PROCESSING'}
+                  className="flex items-center gap-2"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" />
+                      Start
+                    </>
+                  )}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleDeleteDocument(doc.id)}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-gray-500">Type:</span>{' '}
+                <span className="font-medium">{doc.extension}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Created:</span>{' '}
+                <span className="font-medium">
+                  {new Date(doc.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+  
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Status:</span>
+              <span className={`text-sm font-medium ${getStatusColor(doc.status)}`}>
+                {doc.status}
+              </span>
+            </div>
+  
+            {(isProcessing || doc.status === 'PROCESSING') && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                  <p className="text-sm text-blue-600">Processing document...</p>
+                </div>
+                <Progress value={progress} className="h-1" />
+              </div>
+            )}
+  
+            {doc.status === 'processed' && (
+              <Alert className={getStatusBackground(doc.status)}>
+                <AlertDescription className="text-sm text-green-600 flex items-center gap-2">
+                  Document processed successfully
+                </AlertDescription>
+              </Alert>
+            )}
+  
+            {doc.status === 'failed' && (
+              <Alert className={getStatusBackground(doc.status)}>
+                <AlertDescription className="text-sm text-red-600 flex items-center gap-2">
+                  Processing failed
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
   return (
     <div className="container mx-auto p-4 space-y-4">
       <Card>
@@ -239,18 +420,7 @@ const KnowledgeBaseComponent: React.FC = () => {
                   )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {documents.map((doc) => (
-                      <Card key={doc.id}>
-                        <CardHeader>
-                          <CardTitle className="text-lg">{doc.name}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-gray-500">Type: {doc.extension}</p>
-                          <p className="text-sm text-gray-500">Status: {doc.status}</p>
-                          <p className="text-sm">Created: {new Date(doc.created_at).toLocaleDateString()}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    {documents.map(renderDocumentCard)}
                   </div>
                 </div>
               )}

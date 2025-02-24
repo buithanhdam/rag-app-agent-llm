@@ -1,5 +1,6 @@
 from src.rag.rag_manager import RAGManager
-from src.config import Settings, RAGType
+from src.config import Settings
+from src.db.models import RAGType
 # Example RAG Tool implementation
 def retrieve_documents(query: str) -> str:
     """

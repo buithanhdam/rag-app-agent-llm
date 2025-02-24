@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -35,14 +36,8 @@ class KnowledgeBaseService:
         self.settings = settings
         self.file_extractor = FileExtractor()
         self.qdrant_client = QdrantVectorDatabase(url=settings.QDRANT_URL)
+        self.settings = settings
         self.s3_client = get_aws_s3_client()
-        # self.rag_manager = RAGManager.create_rag(
-        #     rag_type=settings.RAG_CONFIG.rag_type,
-        #     qdrant_url=settings.QDRANT_URL,
-        #     gemini_api_key=settings.GEMINI_CONFIG.api_key,
-        #     chunk_size=settings.RAG_CONFIG.chunk_size,
-        #     chunk_overlap=settings.RAG_CONFIG.chunk_overlap,
-        # )
         
     async def create_knowledge_base(
         self, 
@@ -140,115 +135,194 @@ class KnowledgeBaseService:
         file_content: bytes,
         filename: str
     ) -> DocumentResponse:
-        """Create a new document and process it"""
-        # Verify knowledge base exists
+        """Create a new document and store it in S3"""
         kb = await self.get_knowledge_base(session, kb_id)
         if not kb:
             raise HTTPException(status_code=404, detail="Knowledge base not found")
+        
+        temp_file = None
         try:
+            # Create temp directory if it doesn't exist
             temp_dir = Path(tempfile.gettempdir()) / "uploads"
-            temp_dir.mkdir(exist_ok=True)
-            original_filename = Path(filename)
-            extension = original_filename.suffix
+            temp_dir.mkdir(parents=True, exist_ok=True)
             
-            # Create a unique temporary file with original extension
+            original_filename = Path(filename)
+            extension = original_filename.suffix.lower()
+            
+            # Create temp file with unique name
             temp_file = tempfile.NamedTemporaryFile(
                 delete=False,
                 suffix=extension,
                 dir=temp_dir
             )
             
-            # Write content to temporary file
+            # Write content to temp file
             with open(temp_file.name, 'wb') as f:
                 f.write(file_content)
-            file_path = temp_file.name
-            print(file_path)
-            date_path = datetime.now().strftime("%d-%m-%Y")
-            object_name = os.path.join(date_path, f"{uuid.uuid4()}_{filename}")
+            
+            # Generate S3 path
+            date_path = datetime.now().strftime("%Y/%m/%d")
+            file_name = f"{uuid.uuid4()}_{filename}"
+            bucket_name = f"kb-{kb.id}-{''.join(kb.name.split(' '))}"
 
-            file_path_in_s3=self.s3_client.upload_file(
-                bucket_name=f"kb-{kb.id}-{''.join(kb.name.split(' '))}",
-                object_name=object_name,
-                file_path=str(file_path),
-            )
+            # Upload to S3
+            try:
+                file_path_in_s3 = self.s3_client.upload_file(
+                    bucket_name=bucket_name,
+                    object_name=os.path.join(date_path, file_name),
+                    file_path=str(temp_file.name),
+                )
+            except Exception as e:
+                logger.error(f"S3 upload failed: {str(e)}")
+                raise HTTPException(500, "Failed to upload file to storage")
+
             # Create document record
-            print('here')
             document = Document(
                 knowledge_base_id=kb_id,
-                name=filename,
+                name=file_name,
                 source=file_path_in_s3,
                 extension=extension,
                 status=DocumentStatus.UPLOADED,
-                extra_info=doc_data.extra_info
+                extra_info=doc_data.extra_info,
             )
+            
             session.add(document)
-            session.flush()  # Get document.id
-            
-            # # Process the document content
-            # processed_data = await self.process_document(
-            #     file_content=file_content,
-            #     filename=filename,
-            #     collection_name=f"kb_{kb_id}",
-            #     metadata={"document_id": document.id, **doc_data.extra_info} if doc_data.extra_info else {"document_id": document.id}
-            # )
-            
-            # # Create document chunks
-            # for chunk_idx, chunk_data in enumerate(processed_data["chunks"]):
-            #     chunk = DocumentChunk(
-            #         document_id=document.id,
-            #         content=chunk_data["text"],
-            #         chunk_index=chunk_idx,
-            #         embedding=chunk_data["embedding"],
-            #         extra_info=chunk_data.get("metadata", {})
-            #     )
-            #     session.add(chunk)    
-        except Exception as e:
-            document.status = DocumentStatus.FAILED
-            logger.error(f"Error uploading document: {str(e)}")
-            raise e
-        
-        finally:
             session.commit()
             session.refresh(document)
             
-        return document
+            return document
+            
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error creating document: {str(e)}")
+            raise HTTPException(500, f"Failed to create document: {str(e)}")
+            
+        finally:
+            # Cleanup temp file
+            if temp_file and os.path.exists(temp_file.name):
+                try:
+                    os.unlink(temp_file.name)
+                except Exception as e:
+                    logger.warning(f"Failed to delete temp file: {str(e)}")
 
     async def process_document(
         self,
-        file_content: bytes,
-        filename: str,
-        collection_name: str,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        kb_id: int,
+        doc_id: int,
+        session: Session,
+    ) -> DocumentResponse:
         """Process document content and create embeddings"""
+        # Get knowledge base and document
+        kb = session.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
+        if not kb:
+            raise HTTPException(status_code=404, detail="Knowledge base not found")
+            
+        doc = session.query(Document).filter(
+            Document.id == doc_id,
+            Document.knowledge_base_id == kb_id
+        ).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+            
+        # Get RAG config
+        rag_config :RAGConfig = kb.rag_config
+        if not rag_config:
+            raise HTTPException(status_code=404, detail="RAG Config not found")
+        
+        # Update document status
+        doc.status = DocumentStatus.PENDING
+        session.commit()
+        
+        temp_file = None
         try:
-            # Extract text content
-            documents = parse_multiple_files(
-                file_content,
-                extractor=self.file_extractor.get_extractor_for_file(filename)
+            # Create temp directory
+            temp_dir = Path(tempfile.gettempdir()) / "downloads"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create temp file
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=doc.extension,
+                dir=temp_dir
             )
             
-            # Process with RAG Manager
-            processed_results = []
-            for doc in documents:
-                result = self.rag_manager.process_document(
-                    document=doc.text,
-                    collection_name=collection_name,
-                    metadata=metadata
-                )
-                processed_results.append(result)
+            # Update status to processing
+            doc.status = DocumentStatus.PROCESSING
+            session.commit()
             
-            return {
-                "status": "success",
-                "processed_content": "\n".join([doc.text for doc in documents]),
-                "chunks": processed_results,
-                "total": len(processed_results),
-                "collection": collection_name
-            }
+            # Download file from S3
+            try:
+                self.s3_client.download_file(
+                    file_url=doc.source,
+                    file_path_to_save=temp_file.name
+                )
+            except Exception as e:
+                logger.error(f"S3 download failed: {str(e)}")
+                raise HTTPException(500, "Failed to download file from storage")
+            
+            # Initialize RAG manager
+            rag_manager = RAGManager.create_rag(
+                rag_type=rag_config.rag_type,
+                qdrant_url=self.settings.QDRANT_URL,
+                gemini_api_key=self.settings.GEMINI_CONFIG.api_key,
+                chunk_size=rag_config.chunk_size,
+                chunk_overlap=rag_config.chunk_overlap,
+            )
+            
+            # Extract and process text
+            extractor = self.file_extractor.get_extractor_for_file(temp_file.name)
+            if not extractor:
+                raise HTTPException(400, f"No extractor found for file type: {doc.extension}")
+                
+            documents = parse_multiple_files(temp_file.name, extractor)
+            
+            # Process documents and create chunks
+            for document in documents:
+                chunks = rag_manager.process_document(
+                    document=document.text,
+                    document_id=doc.id,
+                    collection_name=f"kb-{kb.id}",
+                    metadata={
+                        **document.metadata,
+                        "document_name": doc.name,
+                        "created_at": doc.created_at.isoformat(),
+                    }
+                )
+                
+                # Create chunks in database
+                for chunk_idx, chunk_data in enumerate(chunks):
+                    chunk = DocumentChunk(
+                        document_id=doc.id,
+                        content=chunk_data.text,
+                        chunk_index=chunk_idx,
+                        embedding=json.dumps(chunk_data.metadata["embedding"]),
+                        extra_info=chunk_data.metadata,
+                    )
+                    session.add(chunk)
+            
+            # Update document status
+            doc.status = DocumentStatus.PROCESSED
+            session.commit()
+            session.refresh(doc)
+            
+            return doc
             
         except Exception as e:
+            # Update document status to failed
+            doc.status = DocumentStatus.FAILED
+            session.commit()
+            
             logger.error(f"Error processing document: {str(e)}")
-            raise
+            raise HTTPException(500, f"Failed to process document: {str(e)}")
+            
+        finally:
+            # Cleanup temp file
+            if temp_file and os.path.exists(temp_file.name):
+                try:
+                    os.unlink(temp_file.name)
+                except Exception as e:
+                    logger.warning(f"Failed to delete temp file: {str(e)}")
+        
 
     async def query_documents(
         self,

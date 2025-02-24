@@ -1,6 +1,7 @@
 import json
 from typing import List
 from fastapi import APIRouter, Form, UploadFile, File, HTTPException, Depends
+from jsonschema import ValidationError
 from sqlalchemy.orm import Session
 
 from src.config import Settings
@@ -73,33 +74,71 @@ async def get_documents(
 @kb_router.post("/{kb_id}/documents", response_model=DocumentResponse)
 async def upload_document(
     kb_id: int,
-    doc_data: str = Form(...),  # Change to string
+    doc_data: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     kb_service: KnowledgeBaseService = Depends(get_kb_service)
 ):
-    """Upload and process a document for a specific knowledge base"""
-    # Validate file type if needed
-    if not file.filename.lower().endswith(('.pdf', '.txt', '.doc', '.docx')):
-        raise HTTPException(400, "Unsupported file type")
+    """Upload a document for a specific knowledge base"""
+    # Validate file type and size
+    allowed_extensions = ('.pdf', '.txt', '.doc', '.docx')
+    max_file_size = 50 * 1024 * 1024  # 50MB limit
+    
+    if not file.filename.lower().endswith(allowed_extensions):
+        raise HTTPException(400, f"Unsupported file type. Allowed types: {allowed_extensions}")
+    
+    # Check file size
+    file_size = 0
+    content = bytearray()
+    
+    # Read file in chunks to handle large files
+    chunk_size = 1024 * 1024  # 1MB chunks
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        file_size += len(chunk)
+        if file_size > max_file_size:
+            raise HTTPException(400, f"File too large. Maximum size: {max_file_size/1024/1024}MB")
+        content.extend(chunk)
         
     try:
-        # Parse the JSON string
-        doc_data_dict = json.loads(doc_data)
-        doc_data_obj = DocumentCreate(**doc_data_dict)
+        # Parse and validate the JSON string
+        try:
+            doc_data_dict = json.loads(doc_data)
+            doc_data_obj = DocumentCreate(**doc_data_dict)
+        except json.JSONDecodeError:
+            raise HTTPException(400, "Invalid JSON format in doc_data")
+        except ValidationError as e:
+            raise HTTPException(400, f"Invalid document data: {str(e)}")
         
-        content = await file.read()
         return await kb_service.create_document(
             session=db,
             kb_id=kb_id,
             doc_data=doc_data_obj,
-            file_content=content,
+            file_content=bytes(content),
             filename=file.filename
         )
             
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, "Internal server error during document upload")
 
+@kb_router.post("/{kb_id}/documents/{doc_id}/process", response_model=DocumentResponse)
+async def process_document(
+    kb_id: int,
+    doc_id: int,
+    db: Session = Depends(get_db),
+    kb_service: KnowledgeBaseService = Depends(get_kb_service)
+):
+    """Process an uploaded document"""
+    try:
+        return await kb_service.process_document(kb_id, doc_id, db)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(500, "Internal server error during document processing")
 @kb_router.post("/{kb_id}/query")
 async def query_documents(
     kb_id: int,

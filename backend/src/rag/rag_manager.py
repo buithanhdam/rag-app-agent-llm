@@ -5,7 +5,7 @@ from .base_rag import BaseRAGManager
 from .naive_rag import NaiveRAG
 from .hybrid_rag import HybridRAG
 from.hyde_rag import HyDERAG
-from src.config import RAGType
+from src.db.models import RAGType
 logger = get_formatted_logger(__file__)
 
 
@@ -39,7 +39,7 @@ class RAGManager:
         implementation = cls._rag_implementations.get(rag_type)
         if implementation is None:
             logger.warning(f"RAG type {rag_type} not implemented yet, falling back to normal RAG")
-            implementation = cls._rag_implementations[RAGType.NORMAL]
+            implementation = cls._rag_implementations[RAGType.NAIVE]
         return implementation
 
     @classmethod

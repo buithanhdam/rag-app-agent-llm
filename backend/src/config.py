@@ -9,14 +9,6 @@ dotenv.load_dotenv()
 
 from src.prompt import LLM_SYSTEM_PROMPT
 
-class RAGType(enum.Enum):
-    NORMAL = "normal_rag"
-    HYBRID = "hybrid_rag"
-    CONTEXTUAL = "contextual_rag"
-    FUSION = "fusion_rag"
-    HYDE = "hyde_rag"
-    NAIVE = "naive_rag"
-
 class ReaderConfig(BaseModel):
     """Configuration for DoclingReader"""
     num_threads: int = 4
@@ -46,7 +38,7 @@ class LLMConfig(BaseModel):
 
 class QdrantPayload(BaseModel):
     """Payload for vectors in Qdrant"""
-    document_id: str
+    document_id: str | int
     text: str
     vector_id: str
     

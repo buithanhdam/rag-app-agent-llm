@@ -87,10 +87,10 @@ class BaseRAGManager(ABC):
         self,
         document: str,
         collection_name: str,
-        document_id: Optional[str] = None,
+        document_id: Optional[str] | Optional[int] = None,
         metadata: Optional[dict] = None,
         show_progress: bool = True
-    ) -> str:
+    ) -> List[Document]:
         """Process and index a document"""
         pass
 

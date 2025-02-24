@@ -19,10 +19,10 @@ class NaiveRAG(BaseRAGManager):
         self,
         document: str,
         collection_name: str,
-        document_id: Optional[str] = None,
+        document_id: Optional[str] | Optional[int] = None,
         metadata: Optional[dict] = None,
         show_progress: bool = True
-    ) -> str:
+    ) -> List[Document]:
         if document_id is None:
             document_id = str(uuid.uuid4())
             
@@ -54,9 +54,10 @@ class NaiveRAG(BaseRAGManager):
                     vector=embedding,
                     payload=payload
                 )
+                chunk.metadata["embedding"] = embedding
             
-            logger.info(f"Successfully processed document {document_id}")
-            return document_id
+                logger.info(f"Successfully processed document {document_id} with chunk {chunk.metadata['chunk_id']}")
+            return chunks_iter
             
         except Exception as e:
             logger.error(f"Error processing document: {str(e)}")
