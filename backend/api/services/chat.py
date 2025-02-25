@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from llama_index.core.llms import ChatMessage
-from src.db.models import RoleType,Conversation, Message,AgentType, AgentConversation, Agent, LLMConfig, LLMProvider, Communication, CommunicationConversation, MessageType
+from src.db.models import KnowledgeBase, RoleType,Conversation, Message,AgentType, AgentConversation, Agent, LLMConfig, LLMProvider, Communication, CommunicationConversation, MessageType
 from api.schemas.chat import (
     CommunicationConversationCreate, ConversationCreate, ConversationUpdate, ConversationResponse,
     MessageCreate, MessageResponse
@@ -36,7 +36,15 @@ class ChatService:
         agent = db.query(Agent).filter(Agent.id == agent_id).first()
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
-            
+        
+        # setup agent with kb rag config setup multi tool
+        kbs : List[KnowledgeBase] = agent.knowledge_bases    
+        from src.tools.rag_tool import RAGToolManager
+        rag_tools = RAGToolManager.create_rag_tools_for_agent(kbs)
+        simple_tools = tool_manager.get_all_tools()
+        
+        tools = rag_tools + simple_tools
+
         llm_config = db.query(LLMConfig).filter(LLMConfig.id == agent.config_id).first()
         if not llm_config:
             raise HTTPException(status_code=404, detail="LLM config not found")
@@ -53,7 +61,7 @@ class ChatService:
                     name=agent.name,
                     description=agent.description
                 ),
-                tools=tool_manager.get_all_tools()
+                tools=tools
             )
         else:
             return ReActAgent(
@@ -63,7 +71,7 @@ class ChatService:
                     name=agent.name,
                     description=agent.description
                 ),
-                tools=tool_manager.get_all_tools()
+                tools=tools
             )
     @staticmethod
     async def setup_communication(db: Session, communication_id: int) -> BaseAgent:

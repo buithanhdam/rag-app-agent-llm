@@ -4,8 +4,7 @@ from typing import Dict, List, Optional, Callable
 from llama_index.core.tools import FunctionTool
 import logging
 from inspect import getdoc
-from src.tools.weather_tool import get_weather
-from src.tools.rag_tool import retrieve_documents
+from src.tools.testing_tool import get_weather
 class ToolManager:
     """
     Manages registration and organization of tools for agents
@@ -83,6 +82,5 @@ class ToolManager:
 tool_manager = ToolManager()
 
 tool_manager.register_many({
-    "rag_search": retrieve_documents,
     "get_weather": get_weather
 })

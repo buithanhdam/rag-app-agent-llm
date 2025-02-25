@@ -30,11 +30,3 @@ async def update_agent(agent_id: int, agent_update: AgentUpdate, db: Session = D
 @agent_router.delete("/delete/{agent_id}", response_model=bool)
 async def delete_agent(agent_id: int, db: Session = Depends(get_db)):
     return await AgentService.delete_agent(db, agent_id)
-
-@agent_router.post("/{agent_id}/link_llm_config", response_model=LLMConfigResponse)
-async def link_llm_config(agent_id: int, llm_config_id: int, db: Session = Depends(get_db)):
-    return await AgentService.link_llm_config(db, agent_id, llm_config_id)
-
-@agent_router.post("/{agent_id}/unlink_llm_config", response_model=bool)
-async def unlink_llm_config(agent_id: int, llm_config_id: int, db: Session = Depends(get_db)):
-    return await AgentService.unlink_llm_config(db, agent_id, llm_config_id)

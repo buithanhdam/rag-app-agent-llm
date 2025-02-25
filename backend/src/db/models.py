@@ -199,6 +199,7 @@ class KnowledgeBase(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     rag_config_id = Column(Integer, ForeignKey("rag_configs.id"))
     name = Column(String(100), nullable=False)
+    specific_id = Column(String(200))
     description = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

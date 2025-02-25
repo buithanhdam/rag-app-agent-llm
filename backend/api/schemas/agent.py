@@ -7,6 +7,7 @@ class AgentCreate(BaseModel):
     foundation_id: Optional[int] = None
     agent_type: AgentType
     config_id: Optional[int] = None
+    kb_ids: Optional[List[int]] = None
     description: Optional[str] = None
     configuration: Optional[Dict[str, Any]] = None
     tools: Optional[List[str]] = None

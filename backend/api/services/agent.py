@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from src.db.models import Agent, LLMConfig, LLMFoundation, AgentConversation
+from src.db.models import Agent, AgentKnowledgeBase, KnowledgeBase, LLMConfig, LLMFoundation, AgentConversation
 from api.schemas.agent import AgentCreate, AgentUpdate, AgentResponse
 
 class AgentService:
@@ -39,7 +39,27 @@ class AgentService:
                     raise HTTPException(status_code=404, detail="LLM Config not found")
                 agent.config_id = agent_create.config_id
 
+                # Check if all knowledge base IDs exist
+            if agent_create.kb_ids and len(agent_create.kb_ids) > 0:
+                kb_count = db.query(KnowledgeBase).filter(
+                    KnowledgeBase.id.in_(agent_create.kb_ids),
+                    KnowledgeBase.is_active == True
+                ).count()
+                
+                if kb_count != len(agent_create.kb_ids):
+                    raise HTTPException(status_code=404, detail="One or more Knowledge Bases not found")
+             
             db.add(agent)
+            db.flush()   
+            # Now add relationships to knowledge bases
+            if agent_create.kb_ids and len(agent_create.kb_ids) > 0:
+                for kb_id in agent_create.kb_ids:
+                    agent_kb = AgentKnowledgeBase(
+                        agent_id=agent.id,
+                        knowledge_base_id=kb_id
+                    )
+                    db.add(agent_kb)
+                    
             db.commit()
             db.refresh(agent)
             return agent

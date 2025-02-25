@@ -69,13 +69,20 @@ class KnowledgeBaseService:
                 is_active=True
             )
             session.add(kb)
+            session.flush()
+            
+            specific_id = f"kb-{kb.id}-{uuid.uuid4()}"
+            self.s3_client.create_bucket(specific_id)
+            
+            self.qdrant_client.create_collection(specific_id, vector_size=768)
+            kb.specific_id = specific_id
             session.commit()
             session.refresh(kb)
-            self.s3_client.create_bucket(f"kb-{kb.id}-{''.join(kb.name.split(' '))}")
-            
-            self.qdrant_client.create_collection(f"kb-{kb.id}", vector_size=768)
             return kb
         except HTTPException as e:
+            session.rollback()
+            raise e
+        except Exception as e:
             session.rollback()
             raise e
 
@@ -136,7 +143,7 @@ class KnowledgeBaseService:
         filename: str
     ) -> DocumentResponse:
         """Create a new document and store it in S3"""
-        kb = await self.get_knowledge_base(session, kb_id)
+        kb = session.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
         if not kb:
             raise HTTPException(status_code=404, detail="Knowledge base not found")
         
@@ -163,7 +170,7 @@ class KnowledgeBaseService:
             # Generate S3 path
             date_path = datetime.now().strftime("%Y/%m/%d")
             file_name = f"{uuid.uuid4()}_{filename}"
-            bucket_name = f"kb-{kb.id}-{''.join(kb.name.split(' '))}"
+            bucket_name = kb.specific_id
 
             # Upload to S3
             try:
@@ -281,7 +288,7 @@ class KnowledgeBaseService:
                 chunks = rag_manager.process_document(
                     document=document.text,
                     document_id=doc.id,
-                    collection_name=f"kb-{kb.id}",
+                    collection_name=kb.specific_id,
                     metadata={
                         **document.metadata,
                         "document_name": doc.name,
