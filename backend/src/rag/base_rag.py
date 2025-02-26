@@ -2,13 +2,14 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 import uuid
 from tqdm import tqdm
-
+from qdrant_client.http import models
 from llama_index.core import Document, Settings
 from llama_index.llms.gemini import Gemini
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core.node_parser import SimpleNodeParser
 from src.db.qdrant import QdrantVectorDatabase
 from src.logger import get_formatted_logger
+from llama_index.core.node_parser import SentenceSplitter
 logger = get_formatted_logger(__file__)
 
 
@@ -81,7 +82,47 @@ class BaseRAGManager(ABC):
         """
         if not self.qdrant_client.check_collection_exists(collection_name):
             self.qdrant_client.create_collection(collection_name, vector_size)
+    def convert_scored_points_to_nodes(
+        self,
+        scored_points: List[models.ScoredPoint],
+        score_threshold: float = 0.0
+    ) -> List[Document]:
+        """
+        Convert Qdrant ScoredPoint results to LlamaIndex nodes
+        
+        Args:
+            scored_points: List of Qdrant search results
+            score_threshold: Minimum score threshold for including results
+            
+        Returns:
+            List of LlamaIndex BaseNode objects
+        """
+        docs = []
+        
+        for point in scored_points:
+            if point.score < score_threshold:
+                continue
+                
+            # Create node with text and metadata
+            doc = Document(
+                text=point.payload.get("text", ""),
+                metadata={
+                    "document_id": point.payload.get("document_id"),
+                    "vector_id": point.payload.get("vector_id"),
+                    "score": point.score,
+                    # Add any other metadata from payload
+                    **{k: v for k, v in point.payload.items() 
+                    if k not in ["text", "document_id", "vector_id"]}
+                }
+            )
+            
+            docs.append(doc)
+                # initialize node parser
+        splitter = SentenceSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
 
+        nodes = splitter.get_nodes_from_documents(docs)
+            
+        return nodes
     @abstractmethod
     def process_document(
         self,

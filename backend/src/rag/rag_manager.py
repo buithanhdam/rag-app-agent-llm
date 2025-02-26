@@ -5,6 +5,7 @@ from .base_rag import BaseRAGManager
 from .naive_rag import NaiveRAG
 from .hybrid_rag import HybridRAG
 from.hyde_rag import HyDERAG
+from .fusion_rag import FusionRAG
 from src.db.models import RAGType
 logger = get_formatted_logger(__file__)
 
@@ -15,10 +16,11 @@ class RAGManager:
     """
     _rag_implementations = {
         RAGType.NAIVE: NaiveRAG,
+        RAGType.NORMAL: NaiveRAG,
         RAGType.HYBRID: HybridRAG,
         # Add other implementations as they are created
         # RAGType.CONTEXTUAL: ContextualRAGManager,
-        # RAGType.FUSION: FusionRAGManager,
+        RAGType.FUSION: FusionRAG,
         RAGType.HYDE: HyDERAG,
     }
 

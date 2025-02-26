@@ -8,7 +8,6 @@ from src.config import QdrantPayload
 from src.logger import get_formatted_logger
 from .base_rag import BaseRAGManager
 import Stemmer
-from llama_index.core.node_parser import SentenceSplitter
 
 logger = get_formatted_logger(__file__)
 
@@ -18,47 +17,6 @@ class HybridRAG(BaseRAGManager):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-    def convert_scored_points_to_nodes(
-        self,
-        scored_points: List[models.ScoredPoint],
-        score_threshold: float = 0.0
-    ) -> List[Document]:
-        """
-        Convert Qdrant ScoredPoint results to LlamaIndex nodes
-        
-        Args:
-            scored_points: List of Qdrant search results
-            score_threshold: Minimum score threshold for including results
-            
-        Returns:
-            List of LlamaIndex BaseNode objects
-        """
-        docs = []
-        
-        for point in scored_points:
-            if point.score < score_threshold:
-                continue
-                
-            # Create node with text and metadata
-            doc = Document(
-                text=point.payload.get("text", ""),
-                metadata={
-                    "document_id": point.payload.get("document_id"),
-                    "vector_id": point.payload.get("vector_id"),
-                    "score": point.score,
-                    # Add any other metadata from payload
-                    **{k: v for k, v in point.payload.items() 
-                    if k not in ["text", "document_id", "vector_id"]}
-                }
-            )
-            
-            docs.append(doc)
-                # initialize node parser
-        splitter = SentenceSplitter(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
-
-        nodes = splitter.get_nodes_from_documents(docs)
-            
-        return nodes
     def process_document(
         self,
         document: str,
@@ -106,8 +64,7 @@ class HybridRAG(BaseRAGManager):
             
         except Exception as e:
             logger.error(f"Error processing document: {str(e)}")
-            raise
-
+            raise      
     def search(
         self,
         query: str,
