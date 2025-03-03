@@ -4,7 +4,7 @@ from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 import sys
 import click
-from src.logger import get_formatted_logger
+import logging
 from copy import copy
 from pathlib import Path
 from typing import Literal

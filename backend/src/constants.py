@@ -5,6 +5,6 @@ SUPPORTED_FILE_EXTENSIONS = [
     ".txt",
     ".csv",
     ".xlsx",
-    ".json",
+    # ".json",
     # ".pptx",
 ]

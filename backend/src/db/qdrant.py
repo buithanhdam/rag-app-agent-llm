@@ -110,9 +110,26 @@ class QdrantVectorDatabase(BaseVectorDatabase):
             logger.info(f"Creating collection {collection_name}")
             self.client.create_collection(
                 collection_name,
-                vectors_config=models.VectorParams(
-                    size=vector_size, distance=self.distance
-                ),optimizers_config=models.OptimizersConfigDiff(
+                vectors_config={
+                    "dense": models.VectorParams(
+                        size=vector_size,
+                        distance=self.distance
+                        ),
+                    "late-interaction": models.VectorParams(
+                        size=vector_size,
+                        distance=self.distance,
+                        multivector_config=models.MultiVectorConfig(
+                            comparator=models.MultiVectorComparator.MAX_SIM
+                        ),
+                    )
+                },
+                sparse_vectors_config={
+                    "sparse": models.SparseVectorParams(
+                        size=vector_size,
+                        distance=self.distance
+                        )
+                },
+                optimizers_config=models.OptimizersConfigDiff(
                     default_segment_number=5,
                     indexing_threshold=0,
                 ),
@@ -202,7 +219,7 @@ class QdrantVectorDatabase(BaseVectorDatabase):
     def search_vector(
         self,
         collection_name: str,
-        vector: list[float],
+        vector: list[float] | list[list[float]],
         search_params: models.SearchParams,
         limit :int,
     ) -> List[ScoredPoint]:
@@ -215,10 +232,110 @@ class QdrantVectorDatabase(BaseVectorDatabase):
         Returns:
             List[models.PointStruct]: List of points
         """
+        
+        if isinstance(vector, list) and all(isinstance(x, (int, float)) for x in vector):
+            vector = [vector]
+            
         return self.client.query_points(
             collection_name=collection_name,
             query=vector,
             search_params=search_params,
+            using="late-interaction",
             with_payload=True,
             limit=limit
         ).points
+    
+    # def hybrid_search_vector(
+    #     self,
+    #     collection_name: str,
+    #     vectors: list[float] | list[list[float]],
+    #     search_params: models.SearchParams,
+    #     limit :int,
+    # ) -> List[ScoredPoint]:
+    #     """
+    #     Hybrid Search for a vector in the collection
+    #     Args:
+    #         collection_name (str): Collection name to search
+    #         vector (list[float]): Vector embedding
+    #         search_params (models.SearchParams): Search parameters
+    #     Returns:
+    #         List[models.PointStruct]: List of points
+    #     """
+    #     if isinstance(vectors, list) and all(isinstance(x, (int, float)) for x in vectors):
+    #         vectors = [vectors]
+    #     matryoshka_prefetch = models.Prefetch(
+    #         prefetch=[
+    #             models.Prefetch(
+    #                 prefetch=[
+    #                     # The first prefetch operation retrieves 100 documents
+    #                     # using the Matryoshka embeddings with the lowest
+    #                     # dimensionality of 64.
+    #                     models.Prefetch(
+    #                         query=[0.456, -0.789, ..., 0.239],
+    #                         using="matryoshka-64dim",
+    #                         limit=100,
+    #                     ),
+    #                 ],
+    #                 # Then, the retrieved documents are re-ranked using the
+    #                 # Matryoshka embeddings with the dimensionality of 128.
+    #                 query=[0.456, -0.789, ..., -0.789],
+    #                 using="matryoshka-128dim",
+    #                 limit=50,
+    #             )
+    #         ],
+    #         # Finally, the results are re-ranked using the Matryoshka
+    #         # embeddings with the dimensionality of 256.
+    #         query=[0.456, -0.789, ..., 0.123],
+    #         using="matryoshka-256dim",
+    #         limit=25,
+    #     )
+    #     sparse_dense_rrf_prefetch = models.Prefetch(
+    #         prefetch=[
+    #             models.Prefetch(
+    #                 prefetch=[
+    #                     # The first prefetch operation retrieves 100 documents
+    #                     # using dense vectors using integer data type. Retrieval
+    #                     # is faster, but quality is lower.
+    #                     models.Prefetch(
+    #                         query=[7, 63, ..., 92],
+    #                         using="dense-uint8",
+    #                         limit=100,
+    #                     )
+    #                 ],
+    #                 # Integer-based embeddings are then re-ranked using the
+    #                 # float-based embeddings. Here we just want to retrieve
+    #                 # 25 documents.
+    #                 query=[-1.234, 0.762, ..., 1.532],
+    #                 using="dense",
+    #                 limit=25,
+    #             ),
+    #             # Here we just add another 25 documents using the sparse
+    #             # vectors only.
+    #             models.Prefetch(
+    #                 query=models.SparseVector(
+    #                     indices=[125, 9325, 58214],
+    #                     values=[-0.164, 0.229, 0.731],
+    #                 ),
+    #                 using="sparse",
+    #                 limit=25,
+    #             ),
+    #         ],
+    #         # RRF is activated below, so there is no need to specify the
+    #         # query vector here, as fusion is done on the scores of the
+    #         # retrieved documents.
+    #         query=models.FusionQuery(
+    #             fusion=models.Fusion.RRF,
+    #         ),
+    #     )
+    #     return self.client.query_points(
+    #         collection_name=collection_name,
+    #         prefetch=[
+    #             matryoshka_prefetch,
+    #             sparse_dense_rrf_prefetch,
+    #         ],
+    #         using="late-interaction",
+    #         query=vectors,
+    #         search_params=search_params,
+    #         with_payload=True,
+    #         limit=limit
+    #     ).points
