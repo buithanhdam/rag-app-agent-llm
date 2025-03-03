@@ -97,7 +97,7 @@ class ChatService:
     @staticmethod
     async def create_conversation(db: Session, conv_create: ConversationCreate) -> Conversation:
         conversation = Conversation(
-            title=conv_create.title + " - " + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            title=conv_create.title
         )
         db.add(conversation)
         db.flush()
@@ -129,7 +129,7 @@ class ChatService:
             raise HTTPException(status_code=404, detail="Communication not found")
         
         # Create conversation
-        conversation = Conversation(title=conv_create.title + " - " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        conversation = Conversation(title=conv_create.title)
         db.add(conversation)
         db.flush()
 

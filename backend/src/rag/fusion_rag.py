@@ -118,9 +118,9 @@ class FusionRAG(BaseRAGManager):
             )
             response = self.llm.complete(fmt_prompt)
             queries = response.text.split("\n")
-            
+            queries.remove("")  # Remove empty string
             queries.append(query)
-            
+            logger.info(f"Generated sub-queries: {queries}")
             # Step 2: Convert sub-queries and user query to embedding
             results : List[NodeWithScore] = []
             for sub_query in queries:
@@ -155,12 +155,12 @@ class FusionRAG(BaseRAGManager):
                     results.extend(bm25_results)
             
             contexts = self.fuse_rerank(results, similarity_top_k=limit)
-            
+            logger.info(f"contexts: {contexts}")
             # Step 4: Generate final response
             prompt = f"""Given the following context and question, provide a comprehensive answer based solely on the provided context. If the context doesn't contain relevant information, say so.
 
             Context:
-            {' '.join(contexts)}
+            {' '.join([node.node.get_content() for node in contexts])}
 
             Question:
             {query}

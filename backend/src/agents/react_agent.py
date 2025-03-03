@@ -66,8 +66,7 @@ class ReActAgent(BaseAgent):
                 {{
                     "description": "step description",
                     "requires_tool": true/false,
-                    "tool_name": "tool_name or null",
-                    "is_required": true/false
+                    "tool_name": "tool_name or null"
                 }},
                 ...
             ]
@@ -91,7 +90,7 @@ class ReActAgent(BaseAgent):
                 plan.add_step(PlanStep(
                     description=step_data['description'],
                     tool_name=step_data.get('tool_name'),
-                    requires_tool=step_data.get('is_required', True)
+                    requires_tool=step_data.get('requires_tool', True)
                 ))
             
             return plan
@@ -135,7 +134,7 @@ class ReActAgent(BaseAgent):
             
         except Exception as e:
             logger.error(f"Error executing tool {step.tool_name}: {str(e)}")
-            if step.is_required:
+            if step.requires_tool:
                 raise
             return None
 
@@ -200,7 +199,7 @@ class ReActAgent(BaseAgent):
                         
                 except Exception as e:
                     logger.error(f"Error in step {step_num}: {str(e)}")
-                    if step.is_required:
+                    if step.requires_tool:
                         raise
                         
             # Generate final summary
