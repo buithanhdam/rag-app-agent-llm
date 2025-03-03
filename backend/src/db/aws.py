@@ -1,5 +1,5 @@
 import sys
-import logging
+from src.logger import get_formatted_logger
 import boto3
 from pathlib import Path
 from fastapi import Depends
@@ -9,7 +9,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed, after_log, before_sl
 from src.config import Settings
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 from urllib.parse import urlparse
-logger = logging.getLogger(__name__)
+logger = get_formatted_logger(__file__)
 
 def get_aws_s3_client(
 ) -> "S3Client":

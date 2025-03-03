@@ -2,7 +2,7 @@
 
 from typing import Dict, List, Optional, Callable
 from llama_index.core.tools import FunctionTool
-import logging
+from src.logger import get_formatted_logger
 from inspect import getdoc
 from src.tools.testing_tool import get_weather
 class ToolManager:
@@ -11,7 +11,7 @@ class ToolManager:
     """
     def __init__(self):
         self.tools: Dict[str, FunctionTool] = {}
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_formatted_logger(__file__)
 
     def register(
         self,

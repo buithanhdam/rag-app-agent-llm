@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Generator, List, Optional
 from llama_index.core.llms import ChatMessage
-import logging
+from src.logger import get_formatted_logger
 from pydantic_settings import BaseSettings
-logger = logging.getLogger(__name__)
+logger = get_formatted_logger(__file__)
 
 class BaseLLM(ABC):
     def __init__(

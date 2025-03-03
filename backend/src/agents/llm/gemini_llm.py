@@ -3,10 +3,10 @@
 # from llama_index.llms.gemini import Gemini
 # from llama_index.core.llms import ChatMessage
 # from .base import BaseLLM
-# import logging
+# from src.logger import get_formatted_logger
 # import asyncio
 # from src.config import Settings
-# logger = logging.getLogger(__name__)
+# logger = get_formatted_logger(__file__)
 
 # class GeminiLLM(BaseLLM):
 #     def __init__(self,

@@ -5,9 +5,9 @@
 # from llama_index.core.llms import ChatMessage
 # from .base import BaseLLM
 # from src.config import Config
-# import logging
+# from src.logger import get_formatted_logger
 
-# logger = logging.getLogger(__name__)
+# logger = get_formatted_logger(__file__)
 
 # class OpenAILLM(BaseLLM):
 #     def __init__(self):

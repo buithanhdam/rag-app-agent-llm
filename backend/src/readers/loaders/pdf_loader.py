@@ -14,7 +14,6 @@ from src.logger import get_formatted_logger
 
 logger = get_formatted_logger(__file__)
 
-
 def get_page_thumbnails(
     file_path: Path, pages: list[int], dpi: int = 80
 ) -> List[Image.Image]:

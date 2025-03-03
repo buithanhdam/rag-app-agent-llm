@@ -2,13 +2,13 @@ from typing import List, Any
 from llama_index.core.llms import ChatMessage
 from llama_index.core.tools import FunctionTool
 import json
-import logging
+from src.logger import get_formatted_logger
 from colorama import Fore
 from src.agents.llm import BaseLLM
 from src.agents.base import BaseAgent, AgentOptions
 from src.agents.utils import ChatHistory, clean_json_response
 
-logger = logging.getLogger(__name__)
+logger = get_formatted_logger(__file__)
 
 BASE_GENERATION_SYSTEM_PROMPT = """
 Your task is to Generate the best content possible for the user's request.

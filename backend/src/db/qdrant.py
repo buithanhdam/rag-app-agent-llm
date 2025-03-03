@@ -1,7 +1,7 @@
 import sys
-import logging
-from uuid import UUID
+from src.logger import get_formatted_logger
 from pathlib import Path
+import logging
 from abc import ABC, abstractmethod
 from qdrant_client.http import models
 from qdrant_client import QdrantClient

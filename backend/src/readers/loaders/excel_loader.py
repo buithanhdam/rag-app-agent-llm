@@ -4,7 +4,7 @@ Pandas parser for .xlsx files.
 
 """
 
-import logging
+from src.logger import get_formatted_logger
 import sys
 from pathlib import Path
 from typing import Any, List, Optional, Union

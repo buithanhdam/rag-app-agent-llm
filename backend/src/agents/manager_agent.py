@@ -1,12 +1,12 @@
 from typing import Any, Dict, List, Optional, Tuple
 from llama_index.core.llms import ChatMessage
 from src.agents.llm import BaseLLM
-import logging
+from src.logger import get_formatted_logger
 import json
 from colorama import Fore
 from src.agents.base import BaseAgent, AgentOptions
 from src.agents.utils import clean_json_response
-logger = logging.getLogger(__name__)
+logger = get_formatted_logger(__file__)
 
 CLASSIFY_PROMPT = """\
 You are AgentMatcher, an intelligent assistant designed to analyze user queries and match them with 

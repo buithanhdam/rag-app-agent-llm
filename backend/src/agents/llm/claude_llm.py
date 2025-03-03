@@ -5,10 +5,10 @@
 # from llama_index.core.llms import ChatMessage
 # from .base import BaseLLM
 # from src.config import Config
-# import logging
+# from src.logger import get_formatted_logger
 # from llama_index.core import Settings
 
-# logger = logging.getLogger(__name__)
+# logger = get_formatted_logger(__file__)
 
 # class ClaudeLLM(BaseLLM):
 #     def __init__(self):

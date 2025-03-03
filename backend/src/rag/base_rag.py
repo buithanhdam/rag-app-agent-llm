@@ -12,8 +12,6 @@ from src.logger import get_formatted_logger
 from llama_index.core.node_parser import SentenceSplitter
 logger = get_formatted_logger(__file__)
 
-
-
 class BaseRAGManager(ABC):
     """
     Abstract base class for RAG implementations

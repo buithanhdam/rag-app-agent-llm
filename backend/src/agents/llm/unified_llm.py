@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Generator, List, Optional
 from llama_index.core.llms import ChatMessage
-import logging
+from src.logger import get_formatted_logger
 import asyncio
 from .base import BaseLLM
 from pydantic_settings import BaseSettings
@@ -11,7 +11,7 @@ from llama_index.llms.gemini import Gemini
 # from llama_index.llms.openai import OpenAI
 from src.config import Settings
 
-logger = logging.getLogger(__name__)
+logger = get_formatted_logger(__file__)
 
 class UnifiedLLM(BaseLLM):
     def __init__(

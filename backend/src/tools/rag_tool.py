@@ -2,7 +2,8 @@ from llama_index.core.tools import FunctionTool
 from src.db.models import KnowledgeBase,RAGConfig, RAGType
 from src.config import Settings
 from typing import List
-
+from src.logger import get_formatted_logger
+logger = get_formatted_logger(__file__)
 class RAGToolManager:
     @staticmethod
     def create_rag_tool_for_knowledge_base(knowledge_base: KnowledgeBase) -> FunctionTool:
@@ -40,7 +41,7 @@ class RAGToolManager:
                 collection_name=collection_name,
                 limit=limit
             )
-        
+        logger.info(f"Created RAG tool for knowledge base: {knowledge_base.name} with RAG type: {rag_type}")
         # Create function tool with proper name and description
         return FunctionTool.from_defaults(
             name=f"search_{knowledge_base.name.lower().replace(' ', '_')}",
