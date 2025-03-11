@@ -127,16 +127,13 @@ class FusionRAG(BaseRAGManager):
 
             # Step 2: Convert sub-queries and user query to embedding
             results: List[NodeWithScore] = []
-            sub_query_embeddings = [
-                self.embedding_model.get_text_embedding(sub_query)
-                for sub_query in queries
-            ]
-
+            sub_query_embeddings = self.embedding_model.aget_text_embedding_batch(queries)
+            
             # Step 3: Perform vector search using query embedding
             sub_query_results = self.qdrant_client.search_vector(
                 collection_name=collection_name,
                 vector=sub_query_embeddings,
-                limit=25,
+                limit=50,
                 search_params=models.SearchParams(
                     quantization=models.QuantizationSearchParams(
                         ignore=False,
