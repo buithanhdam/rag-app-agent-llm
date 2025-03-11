@@ -290,7 +290,7 @@ class ManagerAgent(BaseAgent):
                 logger.info(f"Validation score: {validation_result['score']:.2f}")
                 
             # Check if refinement is needed
-            if (validation_result.get("needs_refinement", False) or 
+            if (validation_result.get("needs_refinement", False) and 
                 validation_result.get("score", 1.0) < self.validation_threshold):
                 
                 if verbose:
