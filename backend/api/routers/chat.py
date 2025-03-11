@@ -45,4 +45,4 @@ async def delete_conversation(conversation_id: int, db: Session = Depends(get_db
 
 @chat_router.post("/chat", response_model=MessageResponse)
 async def add_message(message: MessageCreate, db: Session = Depends(get_db)):
-    return await ChatService.add_message(db, message)
+    return await ChatService.chat(db, message)

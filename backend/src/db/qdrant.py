@@ -123,12 +123,6 @@ class QdrantVectorDatabase(BaseVectorDatabase):
                         ),
                     )
                 },
-                sparse_vectors_config={
-                    "sparse": models.SparseVectorParams(
-                        size=vector_size,
-                        distance=self.distance
-                        )
-                },
                 optimizers_config=models.OptimizersConfigDiff(
                     default_segment_number=5,
                     indexing_threshold=0,
@@ -163,7 +157,7 @@ class QdrantVectorDatabase(BaseVectorDatabase):
                 models.PointStruct(
                     id=vector_id,
                     payload=payload.model_dump(),
-                    vector=vector,
+                    vector={"dense":vector},
                 )
             ],
         )
@@ -219,9 +213,10 @@ class QdrantVectorDatabase(BaseVectorDatabase):
     def search_vector(
         self,
         collection_name: str,
-        vector: list[float] | list[list[float]],
+        vector: list[float],
         search_params: models.SearchParams,
         limit :int,
+        using="dense"
     ) -> List[ScoredPoint]:
         """
         Search for a vector in the collection
@@ -233,15 +228,12 @@ class QdrantVectorDatabase(BaseVectorDatabase):
             List[models.PointStruct]: List of points
         """
         
-        if isinstance(vector, list) and all(isinstance(x, (int, float)) for x in vector):
-            vector = [vector]
-            
         return self.client.query_points(
             collection_name=collection_name,
             query=vector,
             search_params=search_params,
-            using="late-interaction",
             with_payload=True,
+            using=using,
             limit=limit
         ).points
     

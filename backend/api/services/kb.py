@@ -72,13 +72,16 @@ class KnowledgeBaseService:
             session.flush()
             
             specific_id = f"kb-{kb.id}-{uuid.uuid4()}"
-            self.s3_client.create_bucket(specific_id)
-            
-            self.qdrant_client.create_collection(specific_id, vector_size=768)
             kb.specific_id = specific_id
-            session.commit()
-            session.refresh(kb)
-            return kb
+            try:
+                self.qdrant_client.create_collection(specific_id, vector_size=768)
+                self.s3_client.create_bucket(specific_id)
+                session.commit()
+                session.refresh(kb)
+                return kb
+            except Exception as e:
+                session.rollback()
+                raise HTTPException(500, f"Failed to create collection in Qdrant: {str(e)}")
         except HTTPException as e:
             session.rollback()
             raise e

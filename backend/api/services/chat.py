@@ -57,20 +57,22 @@ class ChatService:
             return ReflectionAgent(
                 llm=llm,
                 options=AgentOptions(
-                    id=str(agent.name),
+                    id=f"{"".join(str(agent.name).split(" ")).lower()}{agent.id}",
                     name=agent.name,
                     description=agent.description
                 ),
+                system_prompt=llm_config.system_prompt,
                 tools=tools
             )
         else:
             return ReActAgent(
                 llm=llm,
                 options=AgentOptions(
-                    id=str(agent.name),
+                    id=f"{"".join(str(agent.name).split(" ")).lower()}{agent.id}",
                     name=agent.name,
                     description=agent.description
                 ),
+                system_prompt=llm_config.system_prompt,
                 tools=tools
             )
     @staticmethod
@@ -81,13 +83,16 @@ class ChatService:
         if not communication:
             raise HTTPException(status_code=404, detail="Communication not found")
         agents : List[Agent] = communication.agents
+        system_prompt="You are a intelligent matcher agent"
         manager_agent = ManagerAgent(
-            llm=UnifiedLLM(system_prompt="You are a intelligent agent"),
+            llm=UnifiedLLM(system_prompt=system_prompt),
             options=AgentOptions(
                 id="manager",
                 name="Manager",
                 description="Routes requests to specialized agents"
-            )
+            ),
+            system_prompt=system_prompt,
+            validation_threshold=0.7
         )
         for agent in agents:
             manager_agent.register_agent(await ChatService.setup_agent(db, agent.id))
@@ -193,7 +198,7 @@ class ChatService:
         return True
 
     @staticmethod
-    async def add_message(db: Session, message: MessageCreate) -> Message:
+    async def chat(db: Session, message: MessageCreate) -> Message:
         """Add a message to the conversation, optionally using an agent to generate a response."""
         # If the message is from a user and an agent is specified, generate a response
         db_message = Message(conversation_id=message.conversation_id,
@@ -201,27 +206,33 @@ class ChatService:
                 content=message.content,
                 type=message.type)
         db.add(db_message)
+        
         if message.role == "user":
             if message.type == MessageType.AGENT:
                 agent_conversation = db.query(AgentConversation)\
                     .filter(AgentConversation.conversation_id == message.conversation_id)\
                     .first()
+                    
                 agent = await ChatService.setup_agent(db, agent_conversation.agent_id)   
             else:
                 communication_conversation = db.query(CommunicationConversation)\
                     .filter(CommunicationConversation.conversation_id == message.conversation_id)\
                     .first()
+                    
                 agent = await ChatService.setup_communication(db, communication_conversation.communication_id)
             
             history=db.query(Message).filter(
                 Message.conversation_id == message.conversation_id
                 ).order_by(Message.created_at.desc()).limit(5)
-            response = await agent.run(
+            
+            response = await agent.achat(
                     query=message.content,
                     verbose=True,
                     chat_history=[ChatMessage(role= "user" if m.role == RoleType.USER else "assistant", content=m.content) for m in history]
             )     
+            
             print(response)
+            
             # Add the agent's response as a new message
             agent_message = Message(
                 conversation_id=message.conversation_id,
@@ -229,8 +240,10 @@ class ChatService:
                 content=response,
                 type=MessageType.AGENT
             )
+            
             db.add(agent_message)
             db.commit()
             db.refresh(agent_message)
+            
             return agent_message
         raise HTTPException(status_code=500, detail="Message should be from user role")

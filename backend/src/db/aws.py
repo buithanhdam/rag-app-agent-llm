@@ -1,3 +1,4 @@
+import logging
 import sys
 from src.logger import get_formatted_logger
 import boto3
