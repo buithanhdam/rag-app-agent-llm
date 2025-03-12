@@ -6,16 +6,39 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, FileText, Search, Plus, Database, Trash2, Play } from 'lucide-react';
+import { Upload, FileText, Settings2, Plus, Database, Trash2, Play } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
+
+const ragTypeMap: Record<string, string> = {
+  normal_rag: "Normal",
+  hybrid_rag: "Hybrid",
+  contextual_rag: "Contextual",
+  fusion_rag: "Fusion",
+  hyde_rag: "HyDE",
+  naive_rag: "Naive"
+};
+
+interface RagConfig{
+  id: number;
+  name: string;
+  description: string;
+  rag_type: string;
+  embedding_model: string;
+  similarity_type: string;
+  chunk_size: number;
+  chunk_overlap: number;
+}
+
 interface KnowledgeBase {
   id: string;
   name: string;
   description: string;
   created_at: string;
+  rag_config: RagConfig;
 }
+
 
 interface Document {
   id: string;
@@ -45,6 +68,8 @@ const KnowledgeBaseComponent: React.FC = () => {
   const [processingDocs, setProcessingDocs] = useState<Record<string, boolean>>({});
   const [processingProgress, setProcessingProgress] = useState<Record<string, number>>({});
   const [deleteInProgress, setDeleteInProgress] = useState<Record<string, boolean>>({});
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingKB, setEditingKB] = useState<KnowledgeBase | null>(null);
 
   // Form states for creating new KB
   const [newKBData, setNewKBData] = useState<NewKBData>({
@@ -71,6 +96,7 @@ const KnowledgeBaseComponent: React.FC = () => {
     }
   };
 
+  console.log(knowledgeBases);
   const fetchDocuments = async (kbId: string) => {
     try {
       const response = await fetch(`${BACKEND_API_URL}/kb/${kbId}/documents`);
@@ -90,6 +116,24 @@ const KnowledgeBaseComponent: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Failed to create knowledge base');
+
+      await fetchKnowledgeBases();
+      return true;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
+      return false;
+    }
+  };
+
+  const handleUpdateKB = async () => {
+    try {
+      const response = await fetch(`${BACKEND_API_URL}/kb/${editingKB?.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingKB)
+      });
+
+      if (!response.ok) throw new Error('Failed to update knowledge base');
 
       await fetchKnowledgeBases();
       return true;
@@ -364,12 +408,11 @@ const KnowledgeBaseComponent: React.FC = () => {
                     <SelectValue placeholder="RAG Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="normal_rag">Normal</SelectItem>
-                    <SelectItem value="hybrid_rag">Hybrid</SelectItem>
-                    <SelectItem value="contextual_rag">Contextual</SelectItem>
-                    <SelectItem value="fusion_rag">Fusion</SelectItem>
-                    <SelectItem value="hyde_rag">HyDE</SelectItem>
-                    <SelectItem value="naive_rag">Naive</SelectItem>
+                  {Object.entries(ragTypeMap).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
                   </SelectContent>
                 </Select>
                 <Input
@@ -413,6 +456,147 @@ const KnowledgeBaseComponent: React.FC = () => {
                           <CardTitle className="text-lg">{kb.name}</CardTitle>
                         </div>
                         <div className="flex gap-2">
+                          <Dialog open={isEditDialogOpen && editingKB?.id === kb.id}>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingKB(kb);
+                                  setIsEditDialogOpen(true);
+                                }}
+                              >
+                                <Settings2 className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-lg">
+                              <DialogHeader>
+                                <DialogTitle>Edit Knowledge Base</DialogTitle>
+                              </DialogHeader>
+                              {editingKB && (
+                                <div className="space-y-4">
+                                  {/* Chỉnh sửa tên KB */}
+                                  <Input
+                                    placeholder="Knowledge Base Name"
+                                    value={editingKB.name}
+                                    onChange={(e) =>
+                                      setEditingKB({ ...editingKB, name: e.target.value })
+                                    }
+                                  />
+
+                                  {/* Chỉnh sửa loại RAG */}
+                                  <Select
+                                    value={editingKB.rag_config.rag_type}
+                                    onValueChange={(value: string) =>
+                                      setEditingKB({
+                                        ...editingKB,
+                                        rag_config: { ...editingKB.rag_config, rag_type: value },
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue>
+                                        {ragTypeMap[editingKB.rag_config.rag_type] || "Select RAG type"}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Object.entries(ragTypeMap).map(([key, label]) => (
+                                        <SelectItem key={key} value={key}>
+                                          {label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <Input
+                                    placeholder="description"
+                                    value={editingKB.description}
+                                    onChange={(e) =>
+                                      setEditingKB({
+                                        ...editingKB,
+                                        description: e.target.value ,
+                                      })
+                                    }
+                                  />
+
+{/*                                   
+                                  <Input
+                                    placeholder="Embedding Model"
+                                    value={editingKB.rag_config.embedding_model}
+                                    onChange={(e) =>
+                                      setEditingKB({
+                                        ...editingKB,
+                                        rag_config: { ...editingKB.rag_config, embedding_model: e.target.value },
+                                      })
+                                    }
+                                  />
+
+                                  
+                                  <Input
+                                    placeholder="Similarity Type"
+                                    value={editingKB.rag_config.similarity_type}
+                                    onChange={(e) =>
+                                      setEditingKB({
+                                        ...editingKB,
+                                        rag_config: { ...editingKB.rag_config, similarity_type: e.target.value },
+                                      })
+                                    }
+                                  /> */}
+
+                                  {/* Chỉnh sửa Chunk Size */}
+                                  <Input
+                                    type="number"
+                                    placeholder="Chunk Size"
+                                    value={editingKB.rag_config.chunk_size}
+                                    onChange={(e) =>
+                                      setEditingKB({
+                                        ...editingKB,
+                                        rag_config: {
+                                          ...editingKB.rag_config,
+                                          chunk_size: parseInt(e.target.value),
+                                        },
+                                      })
+                                    }
+                                  />
+
+                                  {/* Chỉnh sửa Chunk Overlap */}
+                                  <Input
+                                    type="number"
+                                    placeholder="Chunk Overlap"
+                                    value={editingKB.rag_config.chunk_overlap}
+                                    onChange={(e) =>
+                                      setEditingKB({
+                                        ...editingKB,
+                                        rag_config: {
+                                          ...editingKB.rag_config,
+                                          chunk_overlap: parseInt(e.target.value),
+                                        },
+                                      })
+                                    }
+                                  />
+
+                                  {/* Nút lưu */}
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        setIsEditDialogOpen(false);
+                                        setEditingKB(null);
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      onClick={() => handleUpdateKB()}
+                                    >
+                                      Save Changes
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </DialogContent>
+                          </Dialog>
+
+                          {/* Nút xóa KB */}
                           <Button
                             size="sm"
                             variant="destructive"
@@ -425,6 +609,7 @@ const KnowledgeBaseComponent: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent>
+                    <p className="text-sm text-blue-500">Rag Type: <b>{kb.rag_config.rag_type}</b></p>
                       <p className="text-sm text-gray-500">{kb.description}</p>
                       <p className="text-sm mt-2">Created: {new Date(kb.created_at).toLocaleDateString()}</p>
                     </CardContent>

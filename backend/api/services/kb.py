@@ -100,11 +100,25 @@ class KnowledgeBaseService:
         kb = session.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
         if not kb:
             raise HTTPException(status_code=404, detail="Knowledge base not found")
-        
-        update_data = kb_data.dict(exclude_unset=True)
+
+        # Lấy RAG config nếu tồn tại
+        rag_config = kb.rag_config
+        if not rag_config:
+            raise HTTPException(status_code=404, detail="RAG Config not found")
+
+        # Nếu có cập nhật RAG config, chỉ update các field có giá trị
+        if kb_data.rag_config:
+            rag_update_data = kb_data.rag_config.dict(exclude_unset=True)
+            for key, value in rag_update_data.items():
+                setattr(rag_config, key, value)
+            session.commit()
+            session.refresh(rag_config)
+
+        # Cập nhật các field của Knowledge Base (ngoại trừ `rag_config`)
+        update_data = kb_data.dict(exclude={"rag_config"}, exclude_unset=True)
         for key, value in update_data.items():
             setattr(kb, key, value)
-        
+
         kb.updated_at = datetime.utcnow()
         session.commit()
         session.refresh(kb)

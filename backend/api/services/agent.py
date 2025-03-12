@@ -71,7 +71,7 @@ class AgentService:
             raise HTTPException(status_code=500, detail=str(e))
 
     @staticmethod
-    async def get_agent(db: Session, agent_id: int) -> Optional[Agent]:
+    async def get_agent(db: Session, agent_id: int) -> Optional[AgentResponse]:
         agent = db.query(Agent).filter(
             Agent.id == agent_id,
             Agent.is_active == True
@@ -96,11 +96,12 @@ class AgentService:
     async def update_agent(db: Session, agent_id: int, agent_update: AgentUpdate) -> Agent:
         try:
             agent = await AgentService.get_agent(db, agent_id)
-            
-            # Update basic fields
+            if not agent:
+                raise HTTPException(status_code=404, detail="Agent not found")
+
             update_data = agent_update.dict(exclude_unset=True)
-            
-            # Handle foundation_id update
+
+            # Kiểm tra foundation_id nếu có
             if 'foundation_id' in update_data:
                 foundation = db.query(LLMFoundation).filter(
                     LLMFoundation.id == update_data['foundation_id'],
@@ -109,7 +110,7 @@ class AgentService:
                 if not foundation:
                     raise HTTPException(status_code=404, detail="LLM Foundation not found")
 
-            # Handle config_id update
+            # Kiểm tra config_id nếu có
             if 'config_id' in update_data:
                 config = db.query(LLMConfig).filter(
                     LLMConfig.id == update_data['config_id']
@@ -117,12 +118,25 @@ class AgentService:
                 if not config:
                     raise HTTPException(status_code=404, detail="LLM Config not found")
 
+            # Xử lý cập nhật kb_ids
+            if 'kb_ids' in update_data:
+                new_kb_ids = set(update_data.pop('kb_ids'))
+                
+                # Xóa tất cả các bản ghi cũ
+                db.query(AgentKnowledgeBase).filter(AgentKnowledgeBase.agent_id == agent_id).delete()
+
+                # Thêm các bản ghi mới
+                for kb_id in new_kb_ids:
+                    db.add(AgentKnowledgeBase(agent_id=agent_id, knowledge_base_id=kb_id))
+
+            # Cập nhật các trường còn lại
             for field, value in update_data.items():
                 setattr(agent, field, value)
 
             db.commit()
             db.refresh(agent)
             return agent
+
         except IntegrityError:
             db.rollback()
             raise HTTPException(status_code=400, detail="Invalid data provided")

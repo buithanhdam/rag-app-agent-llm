@@ -13,7 +13,10 @@ import { toast } from '@/components/ui/use-toast';
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
 
 type AgentType = 'react' | 'reflection';
-
+const agentTypeMap: Record<AgentType, string> = {
+  react: "React",
+  reflection: "Reflection"
+};
 interface Foundation {
   id: number;
   provider: string;
@@ -90,7 +93,7 @@ export default function AgentComponent() {
   };
 
   const [formData, setFormData] = useState<AgentFormData>(initialFormData);
-
+  console.log(editingAgent)
   useEffect(() => {
     fetchAgents();
     fetchFoundations();
@@ -395,8 +398,11 @@ export default function AgentComponent() {
                 <SelectValue placeholder="Select agent type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="react">React</SelectItem>
-                <SelectItem value="reflection">Reflection</SelectItem>
+              {Object.entries(agentTypeMap).map(([key, label]) => (
+                <SelectItem key={key} value={key}>
+                  {label}
+                </SelectItem>
+              ))}
               </SelectContent>
             </Select>
 
@@ -517,7 +523,7 @@ export default function AgentComponent() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-semibold">{agent.name}</h3>
-                    <p className="text-sm text-gray-600">{agent.agent_type}</p>
+                    <p className="text-sm text-gray-500">Type: <b>{agent.agent_type}</b></p>
                   </div>
                   <div className="flex gap-2">
                     <Dialog open={isEditDialogOpen && editingAgent?.id === agent.id}>

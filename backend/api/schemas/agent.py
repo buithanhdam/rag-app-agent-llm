@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from src.db.models import AgentType
+from api.schemas.kb import KnowledgeBaseResponse
 class AgentCreate(BaseModel):
     name: str
     foundation_id: Optional[int] = None
@@ -14,7 +15,10 @@ class AgentCreate(BaseModel):
 
 class AgentUpdate(BaseModel):
     name: Optional[str] = None
+    foundation_id: Optional[int] = None
     agent_type: Optional[str] = None
+    config_id: Optional[int] = None
+    kb_ids: Optional[List[int]] = None
     description: Optional[str] = None
     configuration: Optional[Dict[str, Any]] = None
     tools: Optional[List[str]] = None
@@ -32,3 +36,4 @@ class AgentResponse(BaseModel):
     is_active: bool
     configuration: Optional[Dict[str, Any]]
     tools: Optional[List[str]]
+    knowledge_bases: Optional[List[KnowledgeBaseResponse]]

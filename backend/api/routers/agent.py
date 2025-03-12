@@ -29,4 +29,4 @@ async def update_agent(agent_id: int, agent_update: AgentUpdate, db: Session = D
 
 @agent_router.delete("/delete/{agent_id}", response_model=bool)
 async def delete_agent(agent_id: int, db: Session = Depends(get_db)):
-    return await AgentService.delete_agent(db, agent_id)
+    return await AgentService.hard_delete_agent(db, agent_id)
