@@ -168,7 +168,7 @@ class QdrantVectorDatabase(BaseVectorDatabase):
 
         Args:
             collection_name (str): Collection name to delete
-            document_id (str | UUID): Document ID to delete
+            document_id (str | int): Document ID to delete
         """
 
         if not self.check_collection_exists(collection_name):
@@ -178,20 +178,23 @@ class QdrantVectorDatabase(BaseVectorDatabase):
         logger.debug(
             "collection_name: %s - document_id: %s", collection_name, document_id
         )
-
-        self.client.delete(
-            collection_name,
-            points_selector=models.FilterSelector(
-                filter=models.Filter(
-                    must=[
-                        models.FieldCondition(
-                            key="document_id",
-                            match=models.MatchValue(value=document_id),
-                        )
-                    ]
-                )
-            ),
-        )
+        try:
+            self.client.delete(
+                collection_name,
+                points_selector=models.FilterSelector(
+                    filter=models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="document_id",
+                                match=models.MatchValue(value=document_id),
+                            )
+                        ]
+                    )
+                ),
+            )
+        except Exception as e:
+            logger.error(f"Error deleting vector: {str(e)}")
+            raise e
 
     def delete_collection(self, collection_name: str):
         """
@@ -203,11 +206,12 @@ class QdrantVectorDatabase(BaseVectorDatabase):
         if not self.check_collection_exists(collection_name):
             logger.debug(f"Collection {collection_name} does not exist")
             return
-
-        success = self.client.delete_collection(collection_name)
-
-        if success:
-            logger.debug(f"Collection {collection_name} deleted successfully!")
+        try:
+            self.client.delete_collection(collection_name)
+            logger.info(f"Collection {collection_name} deleted successfully")
+        except Exception as e:
+            logger.error(f"Error deleting collection: {str(e)}")
+            raise e
 
     
     def search_vector(

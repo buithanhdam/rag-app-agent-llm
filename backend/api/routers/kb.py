@@ -1,5 +1,5 @@
 import json
-from typing import List
+from typing import List, Dict
 from fastapi import APIRouter, Form, UploadFile, File, HTTPException, Depends
 from jsonschema import ValidationError
 from sqlalchemy.orm import Session
@@ -61,15 +61,23 @@ async def get_knowledge_base(
     """Get a specific knowledge base"""
     return await kb_service.get_knowledge_base(db, kb_id)
 
+@kb_router.delete("/{kb_id}")
+async def delete_knowledge_base(
+    kb_id: int,
+    db: Session = Depends(get_db),
+    kb_service: KnowledgeBaseService = Depends(get_kb_service)
+):
+    """Delete a knowledge base and all its documents"""
+    return await kb_service.delete_knowledge_base(db, kb_id)
+
 @kb_router.get("/{kb_id}/documents", response_model=List[DocumentResponse])
 async def get_documents(
     kb_id: int,
     db: Session = Depends(get_db),
     kb_service: KnowledgeBaseService = Depends(get_kb_service)
 ):
-    """Get a specific knowledge base"""
+    """Get all documents for a specific knowledge base"""
     return await kb_service.get_documents_by_kb(db, kb_id)
-
 
 @kb_router.post("/{kb_id}/documents", response_model=DocumentResponse)
 async def upload_document(
@@ -139,24 +147,6 @@ async def process_document(
         raise e
     except Exception as e:
         raise HTTPException(500, "Internal server error during document processing")
-@kb_router.post("/{kb_id}/query")
-async def query_documents(
-    kb_id: int,
-    request: QueryRequest,
-    db: Session = Depends(get_db),
-    kb_service: KnowledgeBaseService = Depends(get_kb_service)
-):
-    """Query documents within a specific knowledge base"""
-    try:
-        return await kb_service.query_documents(
-            session=db,
-            kb_id=kb_id,
-            query=request.query,
-            limit=request.limit
-        )
-            
-    except Exception as e:
-        raise HTTPException(500, str(e))
 
 @kb_router.delete("/{kb_id}/documents/{document_id}")
 async def delete_document(
@@ -172,6 +162,7 @@ async def delete_document(
             kb_id=kb_id,
             document_id=document_id
         )
-            
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(500, str(e))

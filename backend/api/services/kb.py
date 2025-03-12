@@ -15,6 +15,7 @@ from api.schemas.kb import (
     DocumentCreate,
     DocumentResponse
 )
+from src.rag.base_rag import BaseRAGManager
 from src.db.models import (
     KnowledgeBase,
     RAGConfig,
@@ -137,6 +138,27 @@ class KnowledgeBaseService:
         kb_id: int)-> List[DocumentResponse]:
         return session.query(Document).filter(Document.knowledge_base_id == kb_id).all()
 
+    async def get_rag_from_kb(
+        self,
+        session: Session,
+        kb_id: int
+     ) -> BaseRAGManager:
+        kb = session.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
+        if not kb:
+            raise HTTPException(status_code=404, detail="Knowledge base not found")
+        # Get RAG config
+        rag_config :RAGConfig = kb.rag_config
+        if not rag_config:
+            raise HTTPException(status_code=404, detail="RAG Config not found")
+        # Initialize RAG manager
+        rag_manager = RAGManager.create_rag(
+            rag_type=rag_config.rag_type,
+            qdrant_url=self.settings.QDRANT_URL,
+            gemini_api_key=self.settings.GEMINI_CONFIG.api_key,
+            chunk_size=rag_config.chunk_size,
+            chunk_overlap=rag_config.chunk_overlap,
+        )
+        return rag_manager
     async def create_document(
         self,
         session: Session,
@@ -234,10 +256,7 @@ class KnowledgeBaseService:
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
             
-        # Get RAG config
-        rag_config :RAGConfig = kb.rag_config
-        if not rag_config:
-            raise HTTPException(status_code=404, detail="RAG Config not found")
+        rag_manager = await self.get_rag_from_kb(session, kb_id)
         
         # Update document status
         doc.status = DocumentStatus.PENDING
@@ -270,14 +289,6 @@ class KnowledgeBaseService:
                 logger.error(f"S3 download failed: {str(e)}")
                 raise HTTPException(500, "Failed to download file from storage")
             
-            # Initialize RAG manager
-            rag_manager = RAGManager.create_rag(
-                rag_type=rag_config.rag_type,
-                qdrant_url=self.settings.QDRANT_URL,
-                gemini_api_key=self.settings.GEMINI_CONFIG.api_key,
-                chunk_size=rag_config.chunk_size,
-                chunk_overlap=rag_config.chunk_overlap,
-            )
             
             # Extract and process text
             extractor = self.file_extractor.get_extractor_for_file(temp_file.name)
@@ -332,41 +343,38 @@ class KnowledgeBaseService:
                     os.unlink(temp_file.name)
                 except Exception as e:
                     logger.warning(f"Failed to delete temp file: {str(e)}")
-        
-
-    async def query_documents(
-        self,
-        session: Session,
-        kb_id: int,
-        query: str,
-        limit: int = 5
-    ) -> Dict[str, Any]:
-        """Query documents within a specific knowledge base"""
-        kb = await self.get_knowledge_base(session, kb_id)
-        
+    async def _delete_document_file_from_s3(self, document: Document) -> None:
+        """Helper method to delete a document file from S3"""
         try:
-            response = self.rag_manager.search(
-                query=query,
-                collection_name=f"kb-{kb_id}",
-                limit=limit
-            )
-            return {
-                "knowledge_base": kb.name,
-                "query": query,
-                "response": response
-            }
-            
+            if document.source:
+                self.s3_client.remove_file(
+                    object_name=document.source
+                )
+                logger.info(f"Deleted document file from S3: {document.source}")
         except Exception as e:
-            logger.error(f"Error querying documents: {str(e)}")
-            raise
-
+            logger.error(f"Error deleting document file from S3: {str(e)}")
+            # Continue with deletion process even if S3 deletion fails
+    
+    async def _delete_document_from_vector_store(self,collection_name: str, document_id: int) -> None:
+        """Helper method to delete document vectors from Qdrant"""
+        try:
+            # Delete vectors by filter
+            self.qdrant_client.delete_vector(
+                collection_name=collection_name,
+                document_id=str(document_id)
+            )
+            logger.info(f"Deleted document vectors from Qdrant: collection={collection_name}, document_id={document_id}")
+        except Exception as e:
+            logger.error(f"Error deleting document from vector store: {str(e)}")
+            # Continue with deletion process even if vector deletion fails    
     async def delete_document(
         self,
         session: Session,
         kb_id: int,
         document_id: int
     ) -> Dict[str, str]:
-        """Delete a document and its chunks"""
+        """Delete a document and its chunks from DB, S3, and vector store"""
+        # Find the document
         document = session.query(Document)\
             .filter(Document.id == document_id, Document.knowledge_base_id == kb_id)\
             .first()
@@ -374,19 +382,76 @@ class KnowledgeBaseService:
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
         
+        # Get the knowledge base to access specific_id for collection name
+        kb = session.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
+        if not kb:
+            raise HTTPException(status_code=404, detail="Knowledge base not found")
+        
         try:
-            # Delete from vector store
-            self.rag_manager.delete_document(
-                collection_name=f"kb-{kb_id}",
-                document_id=str(document_id)
-            )
+            # Step 1: Delete from S3
+            await self._delete_document_file_from_s3(document)
             
-            # Delete from database
-            session.delete(document)  # This will cascade delete chunks
+            # Step 2: Delete from vector store
+            await self._delete_document_from_vector_store(kb.specific_id, document_id)
+            
+            # Step 3: Delete from database (this cascades to document chunks)
+            session.delete(document)
             session.commit()
             
             return {"status": "success", "message": "Document deleted successfully"}
             
         except Exception as e:
+            session.rollback()
             logger.error(f"Error deleting document: {str(e)}")
-            raise
+            raise HTTPException(500, f"Failed to delete document: {str(e)}")
+    async def delete_knowledge_base(
+        self,
+        session: Session,
+        kb_id: int
+    ) -> Dict[str, str]:
+        """Delete a knowledge base and all its associated resources"""
+        # Find the knowledge base
+        kb = session.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
+        if not kb:
+            raise HTTPException(status_code=404, detail="Knowledge base not found")
+        
+        try:   
+            # Step 1: Delete the Qdrant collection for this KB
+            try:
+                self.qdrant_client.delete_collection(kb.specific_id)
+                logger.info(f"Deleted Qdrant collection: {kb.specific_id}")
+            except Exception as e:
+                logger.error(f"Error deleting Qdrant collection: {str(e)}")
+                           
+            # Step 2: Delete the S3 bucket for this KB
+            try:
+                self.s3_client.remove_bucket(kb.specific_id)
+                logger.info(f"Deleted S3 bucket: {kb.specific_id}")
+            except Exception as e:
+                logger.error(f"Error deleting S3 bucket: {str(e)}")
+            
+            # Step 3: Delete the KB and its RAG config from the database
+            # This will cascade delete documents and chunks
+            rag_config_id = kb.rag_config_id  # Store before deleting KB
+            
+            # Delete the KB first (this should cascade to documents and chunks)
+            session.delete(kb)
+            session.flush()
+            
+            # Delete the RAG config if it exists
+            if rag_config_id:
+                rag_config = session.query(RAGConfig).filter(RAGConfig.id == rag_config_id).first()
+                if rag_config:
+                    session.delete(rag_config)
+            
+            session.commit()
+            
+            return {
+                "status": "success", 
+                "message": f"Knowledge base '{kb.name}' deleted successfully with all its documents and resources"
+            }
+            
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error deleting knowledge base: {str(e)}")
+            raise HTTPException(500, f"Failed to delete knowledge base: {str(e)}")

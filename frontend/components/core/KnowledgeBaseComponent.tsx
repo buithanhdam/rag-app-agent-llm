@@ -98,6 +98,26 @@ const KnowledgeBaseComponent: React.FC = () => {
       return false;
     }
   };
+  const handleDeleteKB = async (Kb_id: string) => {
+
+    setDeleteInProgress(prev => ({ ...prev, [Kb_id]: true }));
+
+    try {
+      const response = await fetch(
+        `${BACKEND_API_URL}/kb/${Kb_id}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) throw new Error('Delete Kb failed');
+
+      // Remove document from the list
+      setKnowledgeBases(prev => prev.filter(kb => kb.id !== Kb_id));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Delete KB failed');
+    } finally {
+      setDeleteInProgress(prev => ({ ...prev, [Kb_id]: false }));
+    }
+  };
 
   const handleFileUpload = async () => {
     if (!file || !selectedKB) return;
@@ -388,7 +408,21 @@ const KnowledgeBaseComponent: React.FC = () => {
                     }}
                   >
                     <CardHeader>
-                      <CardTitle className="text-lg">{kb.name}</CardTitle>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-lg">{kb.name}</CardTitle>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteKB(kb.id)}
+                            disabled={deleteInProgress[kb.id]}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-gray-500">{kb.description}</p>

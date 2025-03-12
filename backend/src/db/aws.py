@@ -188,17 +188,13 @@ class S3Client:
             logger.error(f"Download failed: {str(e)}")
             raise
 
-    def remove_file(self, bucket_name: str, object_name: str) -> None:
+    def remove_file(self,  object_name: str) -> None:
         """
         Remove file from S3
 
         Args:
-            bucket_name (str): Bucket name
             object_name (str): Object name to remove
         """
-        if not self.check_bucket_exists(bucket_name):
-            logger.warning(f"Bucket {bucket_name} does not exist. Do nothing...")
-            return
 
         try:
             parsed = urlparse(object_name)
@@ -206,7 +202,9 @@ class S3Client:
             # Extract bucket name from hostname
             hostname_parts = parsed.netloc.split('.')
             bucket_name = hostname_parts[0]
-            
+            if not self.check_bucket_exists(bucket_name):
+                logger.warning(f"Bucket {bucket_name} does not exist. Do nothing...")
+                return
             # Extract object key from path
             object_name = parsed.path.lstrip('/')
             self.client.delete_object(

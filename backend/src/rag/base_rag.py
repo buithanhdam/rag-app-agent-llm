@@ -10,6 +10,7 @@ from llama_index.core.node_parser import SimpleNodeParser
 from src.db.qdrant import QdrantVectorDatabase
 from src.logger import get_formatted_logger
 from llama_index.core.node_parser import SentenceSplitter
+from src.config import QdrantPayload
 logger = get_formatted_logger(__file__)
 
 class BaseRAGManager(ABC):
@@ -73,7 +74,52 @@ class BaseRAGManager(ABC):
             chunks.append(chunk)
             
         return chunks
+    def process_document(
+        self,
+        document: str,
+        collection_name: str,
+        document_id: Optional[str] | Optional[int] = None,
+        metadata: Optional[dict] = None,
+        show_progress: bool = True,
+    ) -> List[Document]:
+        if document_id is None:
+            document_id = str(uuid.uuid4())
 
+        try:
+            doc = Document(text=document, metadata=metadata or {})
+            chunks = self.split_document(doc, show_progress=show_progress)
+
+            # Index chunks
+            chunks_iter = tqdm(chunks, desc="Indexing...") if show_progress else chunks
+            for chunk in chunks_iter:
+                embedding = self.embedding_model.get_text_embedding(chunk.text)
+
+                # Ensure collection exists
+                if chunk == chunks[0]:  # Only check on first chunk
+                    self.ensure_collection(collection_name, len(embedding))
+
+                payload = QdrantPayload(
+                    document_id=document_id,
+                    text=chunk.text,
+                    vector_id=chunk.metadata["chunk_id"],
+                )
+
+                self.qdrant_client.add_vector(
+                    collection_name=collection_name,
+                    vector_id=chunk.metadata["chunk_id"],
+                    vector=embedding,
+                    payload=payload,
+                )
+                chunk.metadata["embedding"] = embedding
+
+                logger.info(
+                    f"Successfully processed document {document_id} with chunk {chunk.metadata['chunk_id']}"
+                )
+            return chunks_iter
+
+        except Exception as e:
+            logger.error(f"Error processing document: {str(e)}")
+            raise
     def ensure_collection(self, collection_name: str, vector_size: int):
         """
         Ensure collection exists in vector store
@@ -121,17 +167,6 @@ class BaseRAGManager(ABC):
         nodes = splitter.get_nodes_from_documents(docs)
             
         return nodes
-    @abstractmethod
-    def process_document(
-        self,
-        document: str,
-        collection_name: str,
-        document_id: Optional[str] | Optional[int] = None,
-        metadata: Optional[dict] = None,
-        show_progress: bool = True
-    ) -> List[Document]:
-        """Process and index a document"""
-        pass
 
     @abstractmethod
     def search(
@@ -144,11 +179,13 @@ class BaseRAGManager(ABC):
         """Search for relevant documents and generate response"""
         pass
 
-    @abstractmethod
     def delete_document(
         self,
         collection_name: str,
-        document_id: str
+        document_id: str | int
     ):
-        """Delete a document from the system"""
-        pass
+        """Delete a document from the system""" 
+        self.qdrant_client.delete_vector(
+            collection_name=collection_name, document_id=document_id
+        )
+        logger.info(f"Deleted document {document_id}")
