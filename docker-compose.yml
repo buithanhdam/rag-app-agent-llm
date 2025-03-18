@@ -35,24 +35,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # streamlit:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile.streamlit
-  #   ports:
-  #     - "8501:8501"
-  #   env_file:
-  #     - ./backend/.env
-  #   volumes:
-  #     - ./backend:/app
-  #   environment:
-  #     - PYTHONUNBUFFERED=1
-  #     - BACKEND_API_URL=http://backend:8000
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - rag-app-network
-
   frontend:
     build:
       context: ./frontend

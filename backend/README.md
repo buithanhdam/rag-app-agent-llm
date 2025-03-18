@@ -26,10 +26,8 @@
 ├── .env.example
 ├── .gitignore
 ├── app_fastapi.py
-├── app_streamlit.py
 ├── docker-compose.yaml
 ├── README.md
-├── requirements_streamlit.txt
 ├── requirements.txt
 ```
 
@@ -43,10 +41,8 @@
 - `.env`: Environment variables file.
 - `.gitignore`: Lists files and directories to ignore in Git.
 - `app_fastapi.py`: Main FastAPI application.
-- `app_streamlit.py`: Main Streamlit application.
 - `docker-compose.yaml`: Docker Compose configuration.
 - `requirements.txt`: Backend dependencies.
-- `requirements_streamlit.txt`: Streamlit frontend dependencies.
 
 ---
 
@@ -84,10 +80,6 @@
    - Backend (FastAPI):
      ```bash
      pip install -r requirements.txt
-     ```
-   - Frontend (Streamlit):
-     ```bash
-     pip install -r requirements_streamlit.txt
      ```
 
 ---
@@ -135,14 +127,6 @@ uvicorn app_fastapi:app --host 0.0.0.0 --port 8000 --reload
 
 - Access API at: `http://127.0.0.1:8000`
 
-### 4.2. Run Streamlit Frontend
-
-```bash
-streamlit run app_streamlit.py --server.port=8501 --server.address=0.0.0.0
-```
-
-- Access UI at: `http://localhost:8501`
-
 ---
 
 ## 5. Using Docker
@@ -160,7 +144,6 @@ streamlit run app_streamlit.py --server.port=8501 --server.address=0.0.0.0
 ### 5.2. Included Services
 
 - **fastapi**: Exposes port `8000`.
-- **streamlit**: Exposes port `8501`.
 - **qdrant**: Exposes ports `6333`, `6334`.
 - **mysql**: Exposes port `3306`.
 
@@ -185,7 +168,6 @@ docker exec -it your-container-name mysql -u root -p
 ### 5.4. Accessing Services
 
 - FastAPI: `http://localhost:8000`
-- Streamlit: `http://localhost:8501`
 
 ### 5.5. Stopping Services
 
@@ -197,7 +179,6 @@ docker-compose down
 
 - Docker network: `rag-app-network` (bridge).
 - FastAPI service uses `./Dockerfile.backend`.
-- Streamlit service uses `./Dockerfile.streamlit`.
 
 ---
 
@@ -208,7 +189,7 @@ docker-compose down
   ```bash
   docker-compose up --build
   ```
-- Verify that required ports (8000, 8501, 6333) are not in use.
+- Verify that required ports (8000, 6333) are not in use.
 
 ---
 

@@ -7,7 +7,7 @@ This repository is an advanced implementation of the Retrieval-Augmented Generat
 1. [Introduction to RAG](#1-introduction-to-rag)
 2. [Multi Agent Orchestrator](#2-multi-agent-orchestrator)
 3. [Advanced RAG Techniques](#3-advanced-rag-techniques)
-4. [Running Backend with Streamlit Separately](#4-running-backend-with-streamlit-separately)
+4. [Running Frontend or Backend Only](#4-running-frontend-or-backend-only)
 5. [Running the Entire Project with Docker and Docker Compose](#5-running-the-entire-project-with-docker-and-docker-compose)
 6. [Project Structure](#6-project-structure)
 7. [Contributing](#7-contributing)
@@ -16,7 +16,7 @@ This repository is an advanced implementation of the Retrieval-Augmented Generat
 
 ---
 
-## 1. Introduction to RAG 💡
+## 1. Introduction to RAG
 
 Large Language Models are trained on a fixed dataset, which limits their ability to handle private or recent information. They can sometimes "hallucinate," providing incorrect yet believable answers. Fine-tuning can help, but it is expensive and not ideal for frequent updates. The Retrieval-Augmented Generation (RAG) framework addresses this issue by using external documents to improve the LLM's responses through in-context learning. RAG ensures that the information provided by the LLM is not only contextually relevant but also accurate and up-to-date.
 
@@ -55,7 +55,7 @@ For further exploration:
 
 ---
 
-## 3. Advanced RAG Techniques ⚙️
+## 3. Advanced RAG Techniques
 
 This repository supports several advanced RAG techniques:
 
@@ -70,9 +70,10 @@ This repository supports several advanced RAG techniques:
 
 ---
 
-## 4. Running Backend Only (With Streamlit Separately)
+## 4. Running Frontend or Backend Only
 
-To run the backend separately with Streamlit, follow the instructions in the [backend README](backend/README.md).
+- To run the **backend** separately, follow the instructions in the [backend README](backend/README.md).
+- To run the **frontend** separately, follow the instructions in the [frontend README](frontend/README.md).
 
 ---
 
@@ -98,6 +99,8 @@ cd rag-app-agent-llm
 cp ./frontend/.env.example ./frontend/.env
 cp ./backend/.env.example ./backend/.env
 ```
+
+and fill:
 
 ```plaintext
 # For backend .env
