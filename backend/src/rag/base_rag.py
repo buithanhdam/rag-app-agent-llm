@@ -5,7 +5,8 @@ from tqdm import tqdm
 from qdrant_client.http import models
 from llama_index.core import Document, Settings
 from llama_index.llms.gemini import Gemini
-from llama_index.embeddings.gemini import GeminiEmbedding
+# from llama_index.embeddings.gemini import GeminiEmbedding
+from .embed.gemini_embedding import GeminiEmbedding
 from llama_index.core.node_parser import SimpleNodeParser
 from src.db.qdrant import QdrantVectorDatabase
 from src.logger import get_formatted_logger
@@ -33,7 +34,10 @@ class BaseRAGManager(ABC):
             temperature=0.1
         )
         self.embedding_model = GeminiEmbedding(
-            api_key=gemini_api_key
+            api_key=gemini_api_key,
+            model_name="models/text-embedding-004",
+           # gemini-embedding-exp-03-07 
+            output_dimensionality=768
         )
         
         # Set global settings
