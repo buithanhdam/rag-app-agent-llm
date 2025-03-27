@@ -330,7 +330,8 @@ class KnowledgeBaseService:
                         document_id=doc.id,
                         content=chunk_data.text,
                         chunk_index=chunk_idx,
-                        embedding=json.dumps(chunk_data.metadata["embedding"]),
+                        dense_embedding=chunk_data.metadata["dense_embedding"],
+                        sparse_embedding=chunk_data.metadata["sparse_embedding"],
                         extra_info=chunk_data.metadata,
                     )
                     session.add(chunk)
